@@ -22,9 +22,10 @@ import {
   Award,
   Search,
   ExternalLink,
-  Eye,
   Calendar,
+  Loader2,
 } from "lucide-react"
+
 
 type Badge = {
   id: string
@@ -46,6 +47,7 @@ export default function BadgesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
   const [badges, setBadges] = useState<Badge[]>([])
+  const [loadingIds, setLoadingIds] = useState<string[]>([])
 
   const filteredBadges = badges.filter((item) => {
     const matchesSearch =
@@ -59,12 +61,30 @@ export default function BadgesPage() {
     return matchesSearch && matchesStatus && matchesType
   })
 
-  const handleClaimBadge = (id: string) => {
-    console.log(`Claiming badge ${id}`)
-  }
+  const handleBadgeAction = async (id: string, action: "accept" | "reject") => {
+    setLoadingIds(prev => [...prev, id])
+    try {
+      const res = await fetch("/api/receiver/badges/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ badgeId: id, action }),
+      })
+      if (!res.ok) throw new Error("Failed to update badge status")
 
-  const handleRejectBadge = (id: string) => {
-    console.log(`Rejecting badge ${id}`)
+      const { updatedBadge, network } = await res.json()
+      setBadges(prev => prev.map(badge =>
+        badge.id === id ? {
+          ...badge,
+          status: updatedBadge.status as Badge["status"],
+          claimedDate: updatedBadge.claimedAt,
+          blockchainUrl: updatedBadge.transactionHash ? `https://lora.algokit.io/${network}/transaction/${updatedBadge.transactionHash}` : undefined,
+        } : badge
+      ))
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingIds(prev => prev.filter(b => b !== id))
+    }
   }
 
   useEffect(() => {
@@ -74,7 +94,7 @@ export default function BadgesPage() {
         if (!response.ok) throw new Error("Failed to fetch badges")
         const rawData = await response.json()
 
-        const transformed: Badge[] = rawData.map((item: any) => ({
+        const transformed: Badge[] = rawData.badges.map((item: any) => ({
           id: item.id,
           title: item.badge.name,
           issuer: item.issuer.organizationName,
@@ -93,7 +113,7 @@ export default function BadgesPage() {
           rejectedDate: null,
           issuedDate: item.issuedAt,
           blockchainUrl: item.transactionHash
-            ? `https://polygonscan.com/tx/${item.transactionHash}`
+            ? `https://lora.algokit.io/${rawData.network}/transaction/${item.transactionHash}`
             : undefined,
         }))
 
@@ -108,13 +128,11 @@ export default function BadgesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">My Badges</h1>
         <p className="text-gray-600">View and manage all your digital badges.</p>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
@@ -154,54 +172,50 @@ export default function BadgesPage() {
         </CardContent>
       </Card>
 
-      {/* Badges Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
         {filteredBadges.map((badge) => (
-          <Card key={badge.id} className="group hover:shadow-lg transition-shadow">
-            <CardHeader className="text-center pb-3">
-              <div className="mx-auto mb-4">
+          <Card key={badge.id} className="group shadow-sm hover:shadow-lg transition-all border rounded-2xl flex flex-col overflow-hidden">
+            <div className="px-6 pt-6 pb-4">
+              <div className="w-[100px] h-[100px] mx-auto mb-4 rounded-lg overflow-hidden border border-gray-200">
                 <img
                   src={badge.image || "/placeholder.svg"}
                   alt={badge.title}
-                  className="w-24 h-24 mx-auto rounded-full object-cover"
+                  className="object-contain w-full h-full"
                 />
               </div>
-              <CardTitle className="text-lg">{badge.title}</CardTitle>
-              <CardDescription>Issued by {badge.issuer}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-gray-600">{badge.description}</p>
-
-              {/* Badge Properties */}
+              <CardTitle className="text-center text-lg font-semibold text-gray-800">{badge.title}</CardTitle>
+              <CardDescription className="text-center text-sm text-gray-500">Issued by <span className="font-medium text-gray-800">{badge.issuer}</span> </CardDescription>
+            </div>
+            <CardContent className="p-6 flex flex-col flex-1">
+              <div className="text-sm text-gray-600 line-clamp-4 mb-4">{badge.description}</div>
               {Object.keys(badge.properties).length > 0 && (
-                <div>
+                <div className="mb-4">
                   <p className="text-sm font-medium text-gray-700 mb-2">Properties:</p>
                   <div className="space-y-1">
                     {Object.entries(badge.properties).map(([key, value]) => (
                       <div key={key} className="flex justify-between text-sm">
                         <span className="text-gray-600">{key}:</span>
-                        <span className="font-medium">{value}</span>
+                        <span className="font-medium text-gray-800">{value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
-              {/* Status and Dates */}
-              <div className="flex items-center justify-between">
-                <UiBadge
-                  variant={
-                    badge.status === "claimed"
-                      ? "default"
-                      : badge.status === "pending"
-                      ? "secondary"
-                      : "destructive"
-                  }
-                >
-                  {badge.status}
-                </UiBadge>
-                <div className="text-xs text-gray-500">
-                  <div className="flex items-center">
+              <div className="mt-auto space-y-2">
+                <div className="flex items-center justify-between">
+                  <UiBadge
+                    className="px-2 py-1 rounded-full capitalize"
+                    variant={
+                      badge.status === "claimed"
+                        ? "default"
+                        : badge.status === "pending"
+                        ? "secondary"
+                        : "destructive"
+                    }
+                  >
+                    {badge.status}
+                  </UiBadge>
+                  <div className="text-xs text-gray-500 flex items-center">
                     <Calendar className="h-3 w-3 mr-1" />
                     {badge.status === "claimed" && badge.claimedDate
                       ? `Claimed ${new Date(badge.claimedDate).toLocaleDateString()}`
@@ -212,58 +226,62 @@ export default function BadgesPage() {
                       : null}
                   </div>
                 </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex space-x-2 pt-2">
-                {badge.status === "pending" && (
-                  <>
-                    <Button
-                      size="sm"
-                      className="flex-1"
-                      style={{ backgroundColor: "#9681FA" }}
-                      onClick={() => handleClaimBadge(badge.id)}
-                    >
-                      Claim
-                    </Button>
+                <div className="flex space-x-2 pt-2">
+                  {badge.status === "pending" && (
+                    <>
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white"
+                        disabled={loadingIds.includes(badge.id)}
+                        onClick={() => handleBadgeAction(badge.id, "accept")}
+                      >
+                        {loadingIds.includes(badge.id) ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-1" /> Claiming...
+                          </>
+                        ) : (
+                          "Claim"
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={loadingIds.includes(badge.id)}
+                        onClick={() => handleBadgeAction(badge.id, "reject")}
+                      >
+                        {loadingIds.includes(badge.id) ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-1" /> Rejecting...
+                          </>
+                        ) : (
+                          "Reject"
+                        )}
+                      </Button>
+                    </>
+                  )}
+                  {badge.status === "claimed" && badge.blockchainUrl && (
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleRejectBadge(badge.id)}
+                      className="flex-1 bg-transparent"
+                      asChild
                     >
-                      Reject
+                      <a
+                        href={badge.blockchainUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" /> Verify
+                      </a>
                     </Button>
-                  </>
-                )}
-
-                {badge.status === "claimed" && badge.blockchainUrl && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 bg-transparent"
-                    asChild
-                  >
-                    <a
-                      href={badge.blockchainUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Verify on Blockchain
-                    </a>
-                  </Button>
-                )}
-
-                <Button size="sm" variant="ghost">
-                  <Eye className="h-4 w-4" />
-                </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Empty State */}
       {filteredBadges.length === 0 && (
         <Card>
           <CardContent className="text-center py-12">

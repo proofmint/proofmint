@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
-import { adminWallet, algodClient, JWT_SECRET } from "@/lib/const";
+import { adminWallet, algodClient, ALGORAND_NETWORK, JWT_SECRET } from "@/lib/const";
 import prisma from "@/lib/prisma";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(updatedBadge);
+    return NextResponse.json({updatedBadge,network:ALGORAND_NETWORK});
   } catch (error) {
     console.error("Failed to process badge action:", error);
     return NextResponse.json(
