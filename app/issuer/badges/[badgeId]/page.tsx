@@ -141,7 +141,9 @@ export default function BadgeDetailPage() {
               <div className="flex gap-4">
                 <div className="flex flex-col items-center">
                   <p className="text-xl font-bold">
-                    {badge.claimLinks[0]?.limit || 0}
+                    {badge.distributionType === "magic"
+                      ? badge.claimLinks[0]?.limit || 0
+                      : badge.issuedInstances.length}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {badge.distributionType === "magic" ? "Limit" : "Issued"}
