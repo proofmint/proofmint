@@ -1,0 +1,185 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// 1. Define the data source and generator
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 2. Define Enums for roles and statuses
+enum Role {
+  receiver
+  issuer
+}
+
+enum IssuerStatus {
+  pending
+  approved
+  rejected
+}
+
+enum CredentialStatus {
+  pending
+  claimed
+  rejected
+}
+
+enum AuthTokenType {
+  MAGIC_LINK
+  OTP
+  EMAIL_VERIFICATION
+}
+
+
+// 3. Define the data models
+
+// Core Models
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  fullName       String
+  passwordHash   String?   // For email-password login
+  role           Role
+  walletAddress  String
+  emailVerified  Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  authTokens         AuthToken[]
+  issuerProfile      Issuer?             // One-to-one with Issuer
+}
+
+model AuthToken {
+  id        String      @id @default(cuid())
+  token     String      @unique
+  type      AuthTokenType
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime    @default(now())
+
+  // Relations
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Issuer {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  organizationName  String
+  websiteUrl        String?
+  status            IssuerStatus @default(pending)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id])
+  createdBadges     Badge[]
+  issuedBadges      IssuedBadge[]       @relation("IssuerBadges")
+  createdClaimLinks BadgeClaimLink[]
+  createdTemplates  CertificateTemplate[]
+  issuedCertificates IssuedCertificate[] @relation("IssuerCertificates")
+}
+
+
+// Badge-Related Models
+model Badge {
+  id                String    @id @default(cuid())
+  assetId           String
+  issuerId          String
+  name              String
+  description       String?
+  imageUrl          String
+  unitName          String?
+  badgeType         String?
+  customProperties  Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  issuer            Issuer        @relation(fields: [issuerId], references: [id])
+  issuedInstances   IssuedBadge[]
+  claimLinks        BadgeClaimLink[]
+}
+
+model BadgeClaimLink {
+  id          String      @id @default(cuid())
+  badgeId     String
+  issuerId    String
+  limit       Int         // Max number of claims allowed
+  claimCount  Int         @default(0)
+  isActive    Boolean     @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime    @default(now())
+
+  // Relations
+  badge         Badge           @relation(fields: [badgeId], references: [id])
+  issuer        Issuer          @relation(fields: [issuerId], references: [id])
+  issuedBadges  IssuedBadge[]   // Tracks all badges claimed via this link
+}
+
+model IssuedBadge {
+  id              String            @id @default(cuid())
+  badgeId         String
+  receiverEmail   String
+  issuerId        String
+  claimLinkId     String?           // Optional: links back to the claim link used
+  status          CredentialStatus  @default(pending)
+  issuedAt        DateTime          @default(now())
+  claimedAt       DateTime?
+  transactionHash String?
+  tokenId         String?
+
+  // Relations
+  badge           Badge   @relation(fields: [badgeId], references: [id])
+  issuer          Issuer  @relation("IssuerBadges", fields: [issuerId], references: [id])
+  claimLink       BadgeClaimLink? @relation(fields: [claimLinkId], references: [id])
+}
+
+
+// Certificate-Related Models
+model CertificateTemplate {
+  id                  String    @id @default(cuid())
+  issuerId            String
+  templateName        String
+  templateDescription String
+  backgroundImageUrl  String
+  dynamicFields       Json      // e.g., [{"fieldName": "Recipient", "x": 100, "y": 250}]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  issuer              Issuer                @relation(fields: [issuerId], references: [id])
+  issuedInstances     IssuedCertificate[]
+}
+
+model IssuedCertificate {
+  id                  String            @id @default(cuid())
+  assetId             String
+  templateId          String
+  receiverEmail       String
+  issuerId            String
+  fieldData           Json              // e.g., {"Recipient": "Jane Doe"}
+  generatedImageUrl   String?
+  status              CredentialStatus  @default(pending)
+  issuedAt            DateTime          @default(now())
+  claimedAt           DateTime?
+  transactionHash     String?
+  tokenId             String?
+
+  // Relations
+  template            CertificateTemplate @relation(fields: [templateId], references: [id])
+  issuer              Issuer              @relation("IssuerCertificates", fields: [issuerId], references: [id])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}

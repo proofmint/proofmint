@@ -1,0 +1,4 @@
+---
+description: this project is a nextjs project using prisma as orm and shadcn components. i'm developing this in windows machine so use cmd for any cli executions.
+alwaysApply: false
+---
