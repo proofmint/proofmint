@@ -130,6 +130,7 @@ export async function PUT(request: Request) {
         templateDescription,
         backgroundImageUrl,
         dynamicFields: dynamicFields || [],
+        updatedAt: new Date(),
       },
     });
 
