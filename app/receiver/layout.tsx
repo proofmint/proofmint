@@ -22,6 +22,16 @@ export default function ReceiverLayout({
     if (!user || user.role !== "receiver") {
       router.push("/auth/login");
     }
+    const pendingClaim = localStorage.getItem("pendingClaim");
+    if (pendingClaim) {
+      const { link, timestamp } = JSON.parse(pendingClaim);
+      if (new Date().getTime() - timestamp > 1000 * 60 * 30) {
+        localStorage.removeItem("pendingClaim");
+      } else {
+        localStorage.removeItem("pendingClaim");
+        router.push(link);
+      }
+    }
   }, [router, user, isLoading]);
 
   if (isLoading) {
@@ -33,14 +43,14 @@ export default function ReceiverLayout({
   }
 
   return (
-      <SidebarProvider>
-        <ReceiverSidebar />
-        <main className="flex-1">
-          <div className="border-b bg-white p-4">
-            <SidebarTrigger />
-          </div>
-          <div className="p-6">{children}</div>
-        </main>
-      </SidebarProvider>
+    <SidebarProvider>
+      <ReceiverSidebar />
+      <main className="flex-1">
+        <div className="border-b bg-white p-4">
+          <SidebarTrigger />
+        </div>
+        <div className="p-6">{children}</div>
+      </main>
+    </SidebarProvider>
   );
 }

@@ -9,6 +9,10 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const { pathname } = req.nextUrl;
 
+  if(pathname.startsWith("/claim/")){
+    return NextResponse.next();
+  }
+
   const publicPaths = ["/auth/login", "/auth/register", "/auth/verify-email", "/auth/verify-token", "/"];
 
   if (publicPaths.includes(pathname)) {
