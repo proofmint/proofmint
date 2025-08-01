@@ -243,12 +243,12 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    const bytes = await signTransactions(group);
+    const { bytes, txnIds } = await signTransactions(group);
 
-    const txnResult = await algodClient.sendRawTransaction(bytes).do();
+    await algodClient.sendRawTransaction(bytes).do();
 
     const blockchainResult = await algodClient
-      .pendingTransactionInformation(txnResult.txid)
+      .pendingTransactionInformation(txnIds[0])
       .do();
     const newBadge = await prisma.badge.create({
       data: {
