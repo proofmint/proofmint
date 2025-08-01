@@ -1,107 +1,110 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState } from "react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Badge as UiBadge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Award, Search, ExternalLink, Eye, Calendar } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Award,
+  Search,
+  ExternalLink,
+  Eye,
+  Calendar,
+} from "lucide-react"
 
-// Dummy badge data
-const badges = [
-  {
-    id: 1,
-    title: "Community Leader",
-    issuer: "Acme University",
-    description: "Awarded for outstanding leadership in community projects and initiatives.",
-    type: "Achievement",
-    status: "claimed",
-    issuedDate: "2024-01-15",
-    claimedDate: "2024-01-16",
-    image: "/placeholder.svg?height=120&width=120&text=Leader+Badge",
-    properties: {
-      "Skill Level": "Expert",
-      "Valid Until": "2026-12-31",
-      Category: "Leadership",
-    },
-    blockchainUrl: "https://polygonscan.com/tx/0x123...",
-  },
-  {
-    id: 2,
-    title: "Workshop Attendance",
-    issuer: "Design Studio",
-    description: "Participated in UX/UI Design Workshop 2024 covering modern design principles.",
-    type: "Event Attendance",
-    status: "claimed",
-    issuedDate: "2024-01-10",
-    claimedDate: "2024-01-11",
-    image: "/placeholder.svg?height=120&width=120&text=Workshop+Badge",
-    properties: {
-      Duration: "8 hours",
-      Location: "Online",
-      Instructor: "Jane Smith",
-    },
-    blockchainUrl: "https://polygonscan.com/tx/0x456...",
-  },
-  {
-    id: 3,
-    title: "JavaScript Expert",
-    issuer: "Tech Academy",
-    description: "Demonstrated advanced proficiency in JavaScript programming and modern frameworks.",
-    type: "Skill",
-    status: "pending",
-    issuedDate: "2024-01-18",
-    image: "/placeholder.svg?height=120&width=120&text=JS+Expert",
-    properties: {
-      "Skill Level": "Advanced",
-      Technologies: "React, Node.js, ES6+",
-      "Assessment Score": "95%",
-    },
-  },
-  {
-    id: 4,
-    title: "Team Player",
-    issuer: "Corporate Inc",
-    description: "Recognized for exceptional collaboration and teamwork in project delivery.",
-    type: "Achievement",
-    status: "rejected",
-    issuedDate: "2024-01-05",
-    rejectedDate: "2024-01-06",
-    image: "/placeholder.svg?height=120&width=120&text=Team+Badge",
-    properties: {
-      Project: "Q4 Product Launch",
-      "Team Size": "12 members",
-      Duration: "3 months",
-    },
-  },
-]
+type Badge = {
+  id: string
+  title: string
+  issuer: string
+  description: string
+  image?: string
+  status: "claimed" | "pending" | "rejected"
+  type: string
+  properties: Record<string, string>
+  claimedDate?: string
+  rejectedDate?: string
+  issuedDate?: string
+  blockchainUrl?: string
+}
 
 export default function BadgesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
+  const [badges, setBadges] = useState<Badge[]>([])
 
-  const filteredBadges = badges.filter((badge) => {
+  const filteredBadges = badges.filter((item) => {
     const matchesSearch =
-      badge.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      badge.issuer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      badge.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || badge.status === statusFilter
-    const matchesType = typeFilter === "all" || badge.type === typeFilter
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.issuer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchesStatus = statusFilter === "all" || item.status === statusFilter
+    const matchesType = typeFilter === "all" || item.type.toLowerCase() === typeFilter.toLowerCase()
 
     return matchesSearch && matchesStatus && matchesType
   })
 
-  const handleClaimBadge = (id: number) => {
-    // Simulate claiming badge
+  const handleClaimBadge = (id: string) => {
     console.log(`Claiming badge ${id}`)
   }
 
-  const handleRejectBadge = (id: number) => {
-    // Simulate rejecting badge
+  const handleRejectBadge = (id: string) => {
     console.log(`Rejecting badge ${id}`)
   }
+
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        const response = await fetch("/api/receiver/badges")
+        if (!response.ok) throw new Error("Failed to fetch badges")
+        const rawData = await response.json()
+
+        const transformed: Badge[] = rawData.map((item: any) => ({
+          id: item.id,
+          title: item.badge.name,
+          issuer: item.issuer.organizationName,
+          description: item.badge.description,
+          image: item.badge.imageUrl,
+          status: item.status,
+          type: item.badge.badgeType,
+          properties: item.badge.customProperties?.reduce(
+            (acc: Record<string, string>, prop: any) => {
+              acc[prop.key] = prop.value
+              return acc
+            },
+            {}
+          ) ?? {},
+          claimedDate: item.claimedAt,
+          rejectedDate: null,
+          issuedDate: item.issuedAt,
+          blockchainUrl: item.transactionHash
+            ? `https://polygonscan.com/tx/${item.transactionHash}`
+            : undefined,
+        }))
+
+        setBadges(transformed)
+      } catch (error) {
+        console.error("Error fetching badges:", error)
+      }
+    }
+
+    fetchBadges()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -141,10 +144,10 @@ export default function BadgesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Skill">Skill</SelectItem>
-                <SelectItem value="Achievement">Achievement</SelectItem>
-                <SelectItem value="Event Attendance">Event</SelectItem>
-                <SelectItem value="Certification">Certification</SelectItem>
+                <SelectItem value="skill">Skill</SelectItem>
+                <SelectItem value="achievement">Achievement</SelectItem>
+                <SelectItem value="event">Event</SelectItem>
+                <SelectItem value="certification">Certification</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -170,35 +173,43 @@ export default function BadgesPage() {
               <p className="text-sm text-gray-600">{badge.description}</p>
 
               {/* Badge Properties */}
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Properties:</p>
-                <div className="space-y-1">
-                  {Object.entries(badge.properties).map(([key, value]) => (
-                    <div key={key} className="flex justify-between text-sm">
-                      <span className="text-gray-600">{key}:</span>
-                      <span className="font-medium">{value}</span>
-                    </div>
-                  ))}
+              {Object.keys(badge.properties).length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Properties:</p>
+                  <div className="space-y-1">
+                    {Object.entries(badge.properties).map(([key, value]) => (
+                      <div key={key} className="flex justify-between text-sm">
+                        <span className="text-gray-600">{key}:</span>
+                        <span className="font-medium">{value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Status and Dates */}
               <div className="flex items-center justify-between">
-                <Badge
+                <UiBadge
                   variant={
-                    badge.status === "claimed" ? "default" : badge.status === "pending" ? "secondary" : "destructive"
+                    badge.status === "claimed"
+                      ? "default"
+                      : badge.status === "pending"
+                      ? "secondary"
+                      : "destructive"
                   }
                 >
                   {badge.status}
-                </Badge>
+                </UiBadge>
                 <div className="text-xs text-gray-500">
                   <div className="flex items-center">
                     <Calendar className="h-3 w-3 mr-1" />
                     {badge.status === "claimed" && badge.claimedDate
-                      ? `Claimed ${badge.claimedDate}`
+                      ? `Claimed ${new Date(badge.claimedDate).toLocaleDateString()}`
                       : badge.status === "rejected" && badge.rejectedDate
-                        ? `Rejected ${badge.rejectedDate}`
-                        : `Issued ${badge.issuedDate}`}
+                      ? `Rejected ${new Date(badge.rejectedDate).toLocaleDateString()}`
+                      : badge.issuedDate
+                      ? `Issued ${new Date(badge.issuedDate).toLocaleDateString()}`
+                      : null}
                   </div>
                 </div>
               </div>
@@ -215,15 +226,28 @@ export default function BadgesPage() {
                     >
                       Claim
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleRejectBadge(badge.id)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRejectBadge(badge.id)}
+                    >
                       Reject
                     </Button>
                   </>
                 )}
 
                 {badge.status === "claimed" && badge.blockchainUrl && (
-                  <Button size="sm" variant="outline" className="flex-1 bg-transparent" asChild>
-                    <a href={badge.blockchainUrl} target="_blank" rel="noopener noreferrer">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 bg-transparent"
+                    asChild
+                  >
+                    <a
+                      href={badge.blockchainUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       <ExternalLink className="h-4 w-4 mr-1" />
                       Verify on Blockchain
                     </a>
@@ -239,6 +263,7 @@ export default function BadgesPage() {
         ))}
       </div>
 
+      {/* Empty State */}
       {filteredBadges.length === 0 && (
         <Card>
           <CardContent className="text-center py-12">

@@ -26,6 +26,8 @@ import {
   User,
 } from "lucide-react"
 import { useSession } from "@/contexts/SessionContext"
+import Image from "next/image"
+import Logo from "@/public/images/Logo.png"
 
 const menuItems = [
   {
@@ -70,9 +72,9 @@ export function IssuerSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center space-x-2 px-2 py-4">
-          <Shield className="h-8 w-8 text-[#9681FA]" />
+          <Image src={Logo} alt="Logo" width={44} height={48} />
           <div>
-            <h2 className="text-lg font-semibold">CredentialChain</h2>
+            <h2 className="text-lg font-semibold">PROOFMINT</h2>
             <p className="text-sm text-gray-500">Issuer Portal</p>
           </div>
         </div>
