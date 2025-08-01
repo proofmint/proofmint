@@ -210,7 +210,7 @@ export default function BadgeDetailPage() {
             </CardHeader>
             <CardContent>
               {badge.distributionType === "magic" && badge.claimLinks[0] && (
-                <div className="space-y-4">
+                <div className="space-y-4 mb-4">
                   <div className="space-y-2">
                     <Label htmlFor="claimLink">Sharable Claim Link</Label>
                     <div className="flex items-center gap-2">
@@ -224,59 +224,43 @@ export default function BadgeDetailPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-center">
-                    <div>
-                      <p className="text-2xl font-bold">
-                        {badge.claimLinks[0].claimCount}
-                      </p>
-                      <p className="text-sm text-muted-foreground">Claims</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">
-                        {badge.claimLinks[0].limit}
-                      </p>
-                      <p className="text-sm text-muted-foreground">Limit</p>
-                    </div>
-                  </div>
                 </div>
               )}
 
-              {badge.distributionType === "email" && (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>S.No.</TableHead>
-                      <TableHead>Recipient</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Status</TableHead>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>S.No.</TableHead>
+                    <TableHead>Recipient</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {badge.issuedInstances.map((instance, index) => (
+                    <TableRow key={instance.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>
+                        {getFullName(instance.receiverEmail)}
+                      </TableCell>
+                      <TableCell>{instance.receiverEmail}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          {instance.status === "claimed" ? (
+                            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                          ) : instance.status === "pending" ? (
+                            <Clock className="h-4 w-4 mr-2 text-yellow-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 mr-2 text-red-500" />
+                          )}
+                          {instance.status.charAt(0).toUpperCase() +
+                            instance.status.slice(1)}
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {badge.issuedInstances.map((instance, index) => (
-                      <TableRow key={instance.id}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>
-                          {getFullName(instance.receiverEmail)}
-                        </TableCell>
-                        <TableCell>{instance.receiverEmail}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            {instance.status === "claimed" ? (
-                              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                            ) : instance.status === "pending" ? (
-                              <Clock className="h-4 w-4 mr-2 text-yellow-500" />
-                            ) : (
-                              <XCircle className="h-4 w-4 mr-2 text-red-500" />
-                            )}
-                            {instance.status.charAt(0).toUpperCase() +
-                              instance.status.slice(1)}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </div>
