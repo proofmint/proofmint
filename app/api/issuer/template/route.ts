@@ -181,3 +181,69 @@ export async function PUT(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const secret = new TextEncoder().encode(JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret);
+    const userId = (payload as any).userId as string;
+
+    // Verify the issuer exists and is authorized
+    const issuer = await prisma.issuer.findUnique({
+      where: { userId },
+    });
+
+    if (!issuer) {
+      return NextResponse.json(
+        { error: "Issuer not found or unauthorized" },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { id } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Template ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const template = await prisma.certificateTemplate.findUnique({
+      where: { id },
+    });
+
+    if (!template) {
+      return NextResponse.json(
+        { error: "Template not found" },
+        { status: 404 }
+      );
+    }
+
+    if (template.issuerId !== issuer.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    await prisma.certificateTemplate.delete({
+      where: { id },
+    });
+
+    return NextResponse.json(
+      { message: "Template deleted successfully" },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error deleting template:", error);
+    return NextResponse.json(
+      { error: "Failed to delete template" },
+      { status: 500 }
+    );
+  }
+}
