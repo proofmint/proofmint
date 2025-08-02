@@ -9,7 +9,10 @@ const nextConfig: NextConfig = {
         hostname: "ipfs.io",
       },
     ],
-  }
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

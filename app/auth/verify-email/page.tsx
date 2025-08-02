@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-export default function VerifyEmailPage() {
+function VerifyEmailPage() {
   const [status, setStatus] = useState<
     "verifying" | "success" | "error" | "idle"
   >("idle");
   const [message, setMessage] = useState("");
   const searchParams = useSearchParams();
-  const router = useRouter();
   const token = searchParams.get("token");
 
   useEffect(() => {
@@ -77,5 +76,13 @@ export default function VerifyEmailPage() {
         <CardContent className="flex flex-col items-center justify-center">{renderContent()}</CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function VerifyEmailPageWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <VerifyEmailPage />
+    </Suspense>
   );
 }

@@ -1,19 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useSession } from "@/contexts/SessionContext";
 
-export default function VerifyTokenPage() {
+function VerifyTokenPage() {
   const [status, setStatus] = useState<"verifying" | "success" | "error">(
     "verifying"
   );
   const [message, setMessage] = useState("");
   const searchParams = useSearchParams();
-  const router = useRouter();
   const token = searchParams.get("token");
   const { login } = useSession();
 
@@ -74,5 +73,14 @@ export default function VerifyTokenPage() {
         <CardContent className="flex flex-col items-center justify-center">{renderContent()}</CardContent>
       </Card>
     </div>
+  );
+}
+
+
+export default function VerifyTokenPageWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <VerifyTokenPage />
+    </Suspense>
   );
 }
