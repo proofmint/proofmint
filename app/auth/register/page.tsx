@@ -19,6 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Shield, Building, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Logo from "@/public/images/Logo.png";
+import Image from "next/image";
 
 export default function RegisterPage() {
   const [userType, setUserType] = useState<"issuer" | "receiver">("receiver");
@@ -119,8 +121,8 @@ export default function RegisterPage() {
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <Shield className="h-8 w-8 text-[#9681FA]" />
-            <span className="text-2xl font-bold">CredentialChain</span>
+            <Image src={Logo} alt="ProofMint" width={32} height={32} />
+            <span className="text-2xl font-bold">ProofMint</span>
           </div>
           <CardTitle>Create Your Account</CardTitle>
           <CardDescription>

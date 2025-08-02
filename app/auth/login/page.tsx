@@ -16,6 +16,8 @@ import { Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSession } from "@/contexts/SessionContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Logo from "@/public/images/Logo.png";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -155,8 +157,8 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <Shield className="h-8 w-8 text-[#9681FA]" />
-            <span className="text-2xl font-bold">CredentialChain</span>
+            <Image src={Logo} alt="ProofMint" width={32} height={32} />
+            <span className="text-2xl font-bold">ProofMint</span>
           </div>
           <CardTitle>Welcome Back</CardTitle>
           <CardDescription>

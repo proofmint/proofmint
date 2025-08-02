@@ -37,9 +37,9 @@ const menuItems = [
     icon: FileText,
   },
   {
-    title: "Settings",
-    url: "/receiver/settings",
-    icon: Settings,
+    title: "Profile",
+    url: "/receiver/profile",
+    icon: User,
   },
 ]
 

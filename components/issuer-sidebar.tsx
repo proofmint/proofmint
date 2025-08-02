@@ -47,7 +47,7 @@ const menuItems = [
   },
   {
     title: "Certificates",
-    url: "/issuer/certificates/create",
+    url: "/issuer/certificates",
     icon: FileText,
   },
   {

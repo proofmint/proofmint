@@ -1,7 +1,15 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge, Shield, Zap } from "lucide-react"
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge, Shield, Zap } from "lucide-react";
+import Logo from "@/public/images/Logo.png";
+import Image from "next/image";
 
 export default function HomePage() {
   return (
@@ -10,15 +18,18 @@ export default function HomePage() {
       <header className="border-b bg-white/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Shield className="h-8 w-8 text-[#9681FA]" />
-            <span className="text-2xl font-bold text-gray-900">CredentialChain</span>
+            <Image src={Logo} alt="Logo" width={44} height={48} />
+            <span className="text-2xl font-bold text-gray-900">ProofMint</span>
           </div>
           <div className="flex items-center space-x-4">
             <Link href="/auth/login">
               <Button variant="ghost">Sign In</Button>
             </Link>
             <Link href="/auth/register">
-              <Button style={{ backgroundColor: "#9681FA" }} className="hover:opacity-90">
+              <Button
+                style={{ backgroundColor: "#9681FA" }}
+                className="hover:opacity-90"
+              >
                 Get Started
               </Button>
             </Link>
@@ -30,15 +41,21 @@ export default function HomePage() {
       <section className="container mx-auto px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-5xl font-bold text-gray-900 mb-6">
-            Secure Digital Credentials on <span className="text-[#9681FA]">Blockchain</span>
+            Secure Digital Credentials on{" "}
+            <span className="text-[#9681FA]">Blockchain</span>
           </h1>
           <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-            Create, issue, and verify digital badges and certificates with blockchain technology. Ensure authenticity
-            and prevent fraud with our decentralized credentialing platform.
+            Create, issue, and verify digital badges and certificates with
+            blockchain technology. Ensure authenticity and prevent fraud with
+            our decentralized credentialing platform.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/auth/register?role=issuer">
-              <Button size="lg" style={{ backgroundColor: "#9681FA" }} className="hover:opacity-90">
+              <Button
+                size="lg"
+                style={{ backgroundColor: "#9681FA" }}
+                className="hover:opacity-90"
+              >
                 Start Issuing Credentials
               </Button>
             </Link>
@@ -54,8 +71,12 @@ export default function HomePage() {
       {/* Features Section */}
       <section className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose CredentialChain?</h2>
-          <p className="text-lg text-gray-600">Powerful features for modern digital credentialing</p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            Why Choose ProofMint?
+          </h2>
+          <p className="text-lg text-gray-600">
+            Powerful features for modern digital credentialing
+          </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
@@ -66,7 +87,8 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <CardDescription>
-                All credentials are minted as NFTs on blockchain, ensuring immutability and preventing fraud.
+                All credentials are minted as NFTs on blockchain, ensuring
+                immutability and preventing fraud.
               </CardDescription>
             </CardContent>
           </Card>
@@ -78,7 +100,8 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <CardDescription>
-                Create beautiful digital badges and certificates with our intuitive template system.
+                Create beautiful digital badges and certificates with our
+                intuitive template system.
               </CardDescription>
             </CardContent>
           </Card>
@@ -90,7 +113,8 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <CardDescription>
-                Verify credentials instantly through blockchain explorer integration and IPFS storage.
+                Verify credentials instantly through blockchain explorer
+                integration and IPFS storage.
               </CardDescription>
             </CardContent>
           </Card>
@@ -101,7 +125,9 @@ export default function HomePage() {
       <section className="bg-[#9681FA] text-white py-16">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
-          <p className="text-xl mb-8 opacity-90">Join thousands of organizations already using CredentialChain</p>
+          <p className="text-xl mb-8 opacity-90">
+            Join thousands of organizations already using ProofMint
+          </p>
           <Link href="/auth/register">
             <Button size="lg" variant="secondary">
               Create Your Account
@@ -114,12 +140,14 @@ export default function HomePage() {
       <footer className="bg-gray-900 text-white py-8">
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <Shield className="h-6 w-6" />
-            <span className="text-lg font-semibold">CredentialChain</span>
+            <Image src={Logo} alt="ProofMint" width={32} height={32} />
+            <span className="text-lg font-semibold">ProofMint</span>
           </div>
-          <p className="text-gray-400">© 2024 CredentialChain. All rights reserved.</p>
+          <p className="text-gray-400">
+            © 2025 ProofMint. All rights reserved.
+          </p>
         </div>
       </footer>
     </div>
-  )
+  );
 }
