@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Upload, Plus, X, Move, Type, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 
 interface DynamicField {
   id: string
@@ -46,6 +46,43 @@ export default function CreateTemplatePage() {
   const canvasRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
   const router = useRouter()
+
+  const params = useParams()
+
+  const templateId = params.templateId as string
+
+  useEffect(() => {
+    if (templateId) {
+      // Fetch existing template data if templateId is provided
+      const fetchTemplate = async () => {
+        try {
+          const response = await fetch(`/api/issuer/template/${templateId}`)
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+          const data = await response.json()
+          const blob = await fetch(data.backgroundImageUrl).then(res => res.blob())
+          const file = new File([blob], "background.png", { type: blob.type })
+          setTemplate({
+            name: data.templateName,
+            description: data.templateDescription,
+            backgroundImage: file,
+            fields: data.dynamicFields || [],
+          })
+        } catch (error) {
+          console.error("Failed to fetch template:", error)
+          toast({
+            title: "Error",
+            description: "Failed to load template data.",
+            variant: "destructive",
+          })
+        }
+      }
+      fetchTemplate()
+    }
+  }, [templateId])
+
+  console.log(template)
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -155,6 +192,7 @@ export default function CreateTemplatePage() {
     const base64Image = await toBase64(template.backgroundImage)
 
     const payload = {
+      id : templateId,
       templateName: template.name,
       templateDescription: template.description,
       backgroundImageUrl: base64Image,
@@ -162,7 +200,7 @@ export default function CreateTemplatePage() {
     }
 
     const res = await fetch("/api/issuer/template", {
-      method: "POST",
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
@@ -174,7 +212,7 @@ export default function CreateTemplatePage() {
     }
 
     toast({
-      title: "Template created successfully!",
+      title: "Template Updated successfully!",
       description: "Your certificate template has been saved and is ready to use.",
     })
     router.push("/issuer/templates")
