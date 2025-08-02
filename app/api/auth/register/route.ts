@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { sendVerificationEmail } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
 import { getWallet } from "@/lib/vault";
-import { getHash, cleanEmail } from "@/lib/utils";
+import { getHash, cleanEmail, getRequestOrigin } from "@/lib/utils";
 import { ensureFund } from "@/lib/blockchain";
 
 export async function POST(req: NextRequest) {
@@ -17,6 +17,8 @@ export async function POST(req: NextRequest) {
       organizationName,
       websiteUrl,
     } = await req.json();
+
+    const origin = getRequestOrigin(req);
 
     const email = cleanEmail(rawEmail);
 
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
             expiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour
           },
         });
-        await sendVerificationEmail(req.nextUrl.origin, email, token.token);
+        await sendVerificationEmail(origin, email, token.token);
         return NextResponse.json(
           { message: "Verification email sent." },
           { status: 200 }
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await ensureFund(walletAddress, 0.15);
+    await ensureFund(walletAddress, 0.05);
 
     const user = await prisma.user.create({
       data: {
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await sendVerificationEmail(req.nextUrl.origin, email, token.token);
+    await sendVerificationEmail(origin, email, token.token);
 
     return NextResponse.json(
       { message: "Verification email sent." },

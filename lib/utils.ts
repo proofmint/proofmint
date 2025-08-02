@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import crypto from "crypto";
+import { NextRequest } from "next/server";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -37,4 +38,10 @@ export function concatArrays(...arrs: ArrayLike<number>[]) {
   }
 
   return c;
+}
+
+export function getRequestOrigin(req: NextRequest) {
+  const protocol = req.headers.get("x-forwarded-proto") || "http";
+  const host = req.headers.get("host");
+  return `${protocol}://${host}`;
 }
