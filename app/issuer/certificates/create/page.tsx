@@ -1,98 +1,95 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Eye, Send } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-
-// Mock template data
-const templates = [
-  {
-    id: 1,
-    name: "Official Course Completion",
-    description: "Standard template for course completion certificates",
-    fields: ["Recipient Name", "Course Title", "Date Issued", "Instructor"],
-    backgroundImage: "/placeholder.svg?height=400&width=600&text=Certificate+Template",
-  },
-  {
-    id: 2,
-    name: "Workshop Attendance",
-    description: "Template for workshop and seminar attendance",
-    fields: ["Participant Name", "Workshop Title", "Duration", "Date"],
-    backgroundImage: "/placeholder.svg?height=400&width=600&text=Workshop+Template",
-  },
-  {
-    id: 3,
-    name: "Achievement Award",
-    description: "Template for special achievements and recognitions",
-    fields: ["Recipient Name", "Achievement", "Category", "Date"],
-    backgroundImage: "/placeholder.svg?height=400&width=600&text=Award+Template",
-  },
-]
-
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Eye, Send } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { CertificateTemplate } from "@prisma/client";
 interface CertificateData {
-  templateId: number | null
+  templateId: string | null;
   singleRecipient: {
-    email: string
-    fieldValues: Record<string, string>
-  }
-  bulkRecipients: {
-    csvData: string
-    fieldMapping: Record<string, string>
-  }
+    email: string;
+    fieldValues: Record<string, string>;
+  };
 }
 
 export default function CreateCertificatePage() {
-  const searchParams = useSearchParams()
-  const [selectedTemplate, setSelectedTemplate] = useState<(typeof templates)[0] | null>(null)
-  const [issuanceMode, setIssuanceMode] = useState<"single" | "bulk">("single")
   const [certificateData, setCertificateData] = useState<CertificateData>({
     templateId: null,
     singleRecipient: {
       email: "",
       fieldValues: {},
     },
-    bulkRecipients: {
-      csvData: "",
-      fieldMapping: {},
-    },
-  })
-  const [generatedCertificates, setGeneratedCertificates] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [showPreview, setShowPreview] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { toast } = useToast()
+  });
+  const [generatedCertificates, setGeneratedCertificates] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const searchParams = useSearchParams();
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<CertificateTemplate | null>(null);
+  const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
 
   useEffect(() => {
-    const templateId = searchParams.get("template")
+    const fetchTemplates = async () => {
+      const res = await fetch("/api/issuer/template");
+      const data = await res.json();
+      console.log(data);
+      setTemplates(data);
+    };
+    fetchTemplates();
+  }, []);
+
+  useEffect(() => {
+    const templateId = searchParams.get("template");
     if (templateId) {
-      const template = templates.find((t) => t.id === Number.parseInt(templateId))
+      const template = templates.find((t) => t.id === templateId);
       if (template) {
-        setSelectedTemplate(template)
-        setCertificateData((prev) => ({ ...prev, templateId: template.id }))
+        setSelectedTemplate(template);
+        setCertificateData((prev) => ({
+          ...prev,
+          templateId: template.id,
+        }));
       }
     }
-  }, [searchParams])
+  }, [searchParams, templates]);
+
+  const fields = useMemo(() => {
+    return (selectedTemplate?.dynamicFields as any[]) || [];
+  }, [selectedTemplate]);
 
   const handleTemplateSelect = (templateId: string) => {
-    const template = templates.find((t) => t.id === Number.parseInt(templateId))
+    const template = templates.find((t) => t.id === templateId);
     if (template) {
-      setSelectedTemplate(template)
+      setSelectedTemplate(template);
       setCertificateData((prev) => ({
         ...prev,
         templateId: template.id,
         singleRecipient: { ...prev.singleRecipient, fieldValues: {} },
-      }))
+      }));
     }
-  }
+  };
 
   const updateSingleRecipientField = (fieldName: string, value: string) => {
     setCertificateData((prev) => ({
@@ -104,67 +101,65 @@ export default function CreateCertificatePage() {
           [fieldName]: value,
         },
       },
-    }))
-  }
+    }));
+  };
 
-  const generateCertificatePreview = () => {
-    if (!selectedTemplate || !canvasRef.current) return
+  const generateCertificatePreview = async (): Promise<string | null> => {
+    if (!selectedTemplate || !canvasRef.current) return null;
 
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
 
     // Set canvas size
-    canvas.width = 800
-    canvas.height = 600
+    canvas.width = 800;
+    canvas.height = 600;
 
-    // Create background
-    ctx.fillStyle = "#f8f9fa"
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    // Load background image
+    const backgroundImage = new Image();
+    backgroundImage.crossOrigin = "anonymous";
+    backgroundImage.src = selectedTemplate.backgroundImageUrl;
 
-    // Add border
-    ctx.strokeStyle = "#9681FA"
-    ctx.lineWidth = 8
-    ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40)
+    return new Promise((resolve) => {
+      backgroundImage.onload = () => {
+        // Draw background image
+        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
 
-    // Add template name as header
-    ctx.fillStyle = "#9681FA"
-    ctx.font = "bold 32px Arial"
-    ctx.textAlign = "center"
-    ctx.fillText("CERTIFICATE", canvas.width / 2, 100)
+        // Draw dynamic fields
+        fields.forEach((field: any) => {
+          const value =
+            certificateData.singleRecipient.fieldValues[field.name] ||
+            `[${field.name}]`;
 
-    // Add dynamic field values
-    ctx.fillStyle = "#333"
-    ctx.font = "24px Arial"
-    let yPosition = 200
+          // Set font properties
+          ctx.font = `${field.fontWeight} ${field.fontSize}px Arial`;
+          ctx.fillStyle = field.color;
+          ctx.textAlign = field.textAlign as CanvasTextAlign;
 
-    if (issuanceMode === "single") {
-      selectedTemplate.fields.forEach((field) => {
-        const value = certificateData.singleRecipient.fieldValues[field] || `[${field}]`
-        ctx.fillText(`${field}: ${value}`, canvas.width / 2, yPosition)
-        yPosition += 50
-      })
-    }
+          // Draw text at specified position
+          ctx.fillText(value, field.x, field.y);
+        });
 
-    // Add signature line
-    ctx.strokeStyle = "#333"
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(canvas.width / 2 - 100, canvas.height - 100)
-    ctx.lineTo(canvas.width / 2 + 100, canvas.height - 100)
-    ctx.stroke()
+        // Return the data URL of the canvas
+        resolve(canvas.toDataURL("image/png"));
+      };
+    });
+  };
 
-    ctx.fillStyle = "#666"
-    ctx.font = "16px Arial"
-    ctx.fillText("Authorized Signature", canvas.width / 2, canvas.height - 70)
-  }
+  
+  useEffect(() => {
+    setTimeout(() => {
+      console.log("generateCertificatePreview");
+      generateCertificatePreview();
+    }, 100);
+  }, [certificateData]);
 
   const handlePreview = () => {
-    setShowPreview(true)
+    setShowPreview(true);
     setTimeout(() => {
-      generateCertificatePreview()
-    }, 100)
-  }
+      generateCertificatePreview();
+    }, 100);
+  };
 
   const handleGenerate = async () => {
     if (!selectedTemplate) {
@@ -172,79 +167,77 @@ export default function CreateCertificatePage() {
         title: "No template selected",
         description: "Please select a certificate template first.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
-    // Simulate certificate generation
-    setTimeout(() => {
-      const certificates = []
+    // Generate the certificate preview
+    const previewDataUrl = await generateCertificatePreview();
+    if (!previewDataUrl) {
+      toast({
+        title: "Failed to generate preview",
+        description: "Could not generate the certificate preview.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
 
-      if (issuanceMode === "single") {
-        certificates.push({
-          id: Date.now(),
-          recipient: certificateData.singleRecipient.email,
-          template: selectedTemplate.name,
-          fieldValues: certificateData.singleRecipient.fieldValues,
-          status: "generated",
-        })
-      } else {
-        // Parse CSV data for bulk generation
-        const lines = certificateData.bulkRecipients.csvData.split("\n").filter((line) => line.trim())
-        const headers = lines[0]?.split(",") || []
+    // Convert data URL to Blob
+    const blob = await fetch(previewDataUrl).then((res) => res.blob());
+    const file = new File([blob], "certificate.png", { type: "image/png" });
 
-        lines.slice(1).forEach((line, index) => {
-          const values = line.split(",")
-          const fieldValues: Record<string, string> = {}
+    // Create FormData for the API
+    const formData = new FormData();
+    formData.append("templateId", selectedTemplate.id);
+    formData.append("recipientEmail", certificateData.singleRecipient.email);
+    formData.append("certificateImage", file);
 
-          headers.forEach((header, headerIndex) => {
-            const mappedField = certificateData.bulkRecipients.fieldMapping[header.trim()]
-            if (mappedField && values[headerIndex]) {
-              fieldValues[mappedField] = values[headerIndex].trim()
-            }
-          })
+    const properties = fields.map((field: any) => ({
+      key: field.name,
+      value: certificateData.singleRecipient.fieldValues[field.name] || "",
+    }));
 
-          certificates.push({
-            id: Date.now() + index,
-            recipient: values[0]?.trim() || `recipient${index + 1}@example.com`,
-            template: selectedTemplate.name,
-            fieldValues,
-            status: "generated",
-          })
-        })
+    formData.append("properties", JSON.stringify(properties));
+
+    try {
+      const response = await fetch("/api/issuer/certificates/create", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error);
       }
 
-      setGeneratedCertificates(certificates)
-      setIsLoading(false)
       toast({
-        title: "Certificates generated!",
-        description: `${certificates.length} certificate(s) have been generated successfully.`,
-      })
-    }, 2000)
-  }
-
-  const handleIssueCertificates = async () => {
-    setIsLoading(true)
-
-    // Simulate blockchain minting
-    setTimeout(() => {
-      setIsLoading(false)
+        title: "Certificate generated!",
+        description: "The certificate has been generated successfully.",
+      });
+      router.push(`/issuer/certificates`);
+    } catch (error) {
       toast({
-        title: "Certificates issued successfully!",
-        description: `${generatedCertificates.length} certificate(s) have been minted and sent to recipients.`,
-      })
-      setGeneratedCertificates([])
-    }, 3000)
-  }
+        title: "Failed to generate the certificate.",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Issue Certificates</h1>
-        <p className="text-gray-600">Generate and issue certificates using your saved templates.</p>
+        <p className="text-gray-600">
+          Generate and issue certificates using your saved templates.
+        </p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -254,17 +247,25 @@ export default function CreateCertificatePage() {
           <Card>
             <CardHeader>
               <CardTitle>Select Template</CardTitle>
-              <CardDescription>Choose a certificate template to use</CardDescription>
+              <CardDescription>
+                Choose a certificate template to use
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <Select value={selectedTemplate?.id.toString() || ""} onValueChange={handleTemplateSelect}>
+              <Select
+                value={selectedTemplate?.id.toString() || ""}
+                onValueChange={handleTemplateSelect}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a certificate template" />
                 </SelectTrigger>
                 <SelectContent>
                   {templates.map((template) => (
-                    <SelectItem key={template.id} value={template.id.toString()}>
-                      {template.name}
+                    <SelectItem
+                      key={template.id}
+                      value={template.id.toString()}
+                    >
+                      {template.templateName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -272,12 +273,20 @@ export default function CreateCertificatePage() {
 
               {selectedTemplate && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium mb-2">{selectedTemplate.name}</h4>
-                  <p className="text-sm text-gray-600 mb-3">{selectedTemplate.description}</p>
+                  <h4 className="font-medium mb-2">
+                    {selectedTemplate.templateName}
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    {selectedTemplate.templateDescription}
+                  </p>
                   <div className="flex flex-wrap gap-1">
-                    {selectedTemplate.fields.map((field) => (
-                      <Badge key={field} variant="secondary" className="text-xs">
-                        {field}
+                    {fields.map((field: any) => (
+                      <Badge
+                        key={field.id}
+                        variant="secondary"
+                        className="text-xs"
+                      >
+                        {field.name}
                       </Badge>
                     ))}
                   </div>
@@ -291,109 +300,52 @@ export default function CreateCertificatePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Certificate Data</CardTitle>
-                <CardDescription>Enter the data for certificate generation</CardDescription>
+                <CardDescription>
+                  Enter the data for certificate generation
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <Tabs value={issuanceMode} onValueChange={(value: any) => setIssuanceMode(value)}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="single">Single Certificate</TabsTrigger>
-                    <TabsTrigger value="bulk">Bulk Certificates</TabsTrigger>
-                  </TabsList>
+                <div className="space-y-2 mb-4">
+                  <Label htmlFor="recipientEmail">Recipient Email *</Label>
+                  <Input
+                    id="recipientEmail"
+                    type="email"
+                    placeholder="recipient@example.com"
+                    value={certificateData.singleRecipient.email}
+                    onChange={(e) =>
+                      setCertificateData((prev) => ({
+                        ...prev,
+                        singleRecipient: {
+                          ...prev.singleRecipient,
+                          email: e.target.value,
+                        },
+                      }))
+                    }
+                    required
+                  />
+                </div>
 
-                  <TabsContent value="single" className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="recipientEmail">Recipient Email *</Label>
+                <div className="space-y-4">
+                  <Label>Dynamic Field Values</Label>
+                  {fields.map((field: any) => (
+                    <div key={field.id} className="space-y-2">
+                      <Label htmlFor={field.id}>{field.name} *</Label>
                       <Input
-                        id="recipientEmail"
-                        type="email"
-                        placeholder="recipient@example.com"
-                        value={certificateData.singleRecipient.email}
+                        id={field.id}
+                        placeholder={`Enter ${field.name.toLowerCase()}`}
+                        value={
+                          certificateData.singleRecipient.fieldValues[
+                            field.name
+                          ] || ""
+                        }
                         onChange={(e) =>
-                          setCertificateData((prev) => ({
-                            ...prev,
-                            singleRecipient: { ...prev.singleRecipient, email: e.target.value },
-                          }))
+                          updateSingleRecipientField(field.name, e.target.value)
                         }
                         required
                       />
                     </div>
-
-                    <div className="space-y-4">
-                      <Label>Dynamic Field Values</Label>
-                      {selectedTemplate.fields.map((field) => (
-                        <div key={field} className="space-y-2">
-                          <Label htmlFor={field}>{field} *</Label>
-                          <Input
-                            id={field}
-                            placeholder={`Enter ${field.toLowerCase()}`}
-                            value={certificateData.singleRecipient.fieldValues[field] || ""}
-                            onChange={(e) => updateSingleRecipientField(field, e.target.value)}
-                            required
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="bulk" className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="csvData">CSV Data *</Label>
-                      <Textarea
-                        id="csvData"
-                        placeholder="email,name,course,date&#10;john@example.com,John Doe,JavaScript Basics,2024-01-15&#10;jane@example.com,Jane Smith,React Advanced,2024-01-15"
-                        rows={8}
-                        value={certificateData.bulkRecipients.csvData}
-                        onChange={(e) =>
-                          setCertificateData((prev) => ({
-                            ...prev,
-                            bulkRecipients: { ...prev.bulkRecipients, csvData: e.target.value },
-                          }))
-                        }
-                      />
-                      <p className="text-xs text-gray-500">
-                        First row should contain column headers. First column should be email addresses.
-                      </p>
-                    </div>
-
-                    {certificateData.bulkRecipients.csvData && (
-                      <div className="space-y-4">
-                        <Label>Field Mapping</Label>
-                        <p className="text-sm text-gray-600">Map your CSV columns to certificate fields:</p>
-                        {selectedTemplate.fields.map((field) => (
-                          <div key={field} className="grid grid-cols-2 gap-4 items-center">
-                            <Label>{field}</Label>
-                            <Select
-                              value={certificateData.bulkRecipients.fieldMapping[field] || ""}
-                              onValueChange={(value) =>
-                                setCertificateData((prev) => ({
-                                  ...prev,
-                                  bulkRecipients: {
-                                    ...prev.bulkRecipients,
-                                    fieldMapping: { ...prev.bulkRecipients.fieldMapping, [field]: value },
-                                  },
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select CSV column" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {certificateData.bulkRecipients.csvData
-                                  .split("\n")[0]
-                                  ?.split(",")
-                                  .map((header, index) => (
-                                    <SelectItem key={index} value={header.trim()}>
-                                      {header.trim()}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -405,21 +357,42 @@ export default function CreateCertificatePage() {
           <Card>
             <CardHeader>
               <CardTitle>Certificate Preview</CardTitle>
-              <CardDescription>Preview how your certificate will look</CardDescription>
+              <CardDescription>
+                Preview how your certificate will look
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {selectedTemplate ? (
                 <div className="space-y-4">
                   {showPreview ? (
-                    <canvas ref={canvasRef} className="w-full border rounded-lg" style={{ maxHeight: "300px" }} />
+                    <canvas
+                      ref={canvasRef}
+                      className="w-full border rounded-lg"
+                      style={{ maxHeight: "300px" }}
+                    />
                   ) : (
                     <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                      <p className="text-gray-500">Click preview to see certificate</p>
+                      <p className="text-gray-500">
+                        Click preview to see certificate
+                      </p>
                     </div>
                   )}
-                  <Button onClick={handlePreview} variant="outline" className="w-full bg-transparent">
+                  <Button
+                    onClick={handlePreview}
+                    variant="outline"
+                    className="w-full bg-transparent"
+                  >
                     <Eye className="h-4 w-4 mr-2" />
                     Preview Certificate
+                  </Button>
+                  <Button
+                    onClick={handleGenerate}
+                    className="w-full"
+                    style={{ backgroundColor: "#9681FA" }}
+                    disabled={!selectedTemplate || isLoading}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    {isLoading ? "Generating..." : "Generate Certificates"}
                   </Button>
                 </div>
               ) : (
@@ -429,50 +402,8 @@ export default function CreateCertificatePage() {
               )}
             </CardContent>
           </Card>
-
-          {/* Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Actions</CardTitle>
-              <CardDescription>Generate and issue certificates</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button
-                onClick={handleGenerate}
-                className="w-full"
-                style={{ backgroundColor: "#9681FA" }}
-                disabled={!selectedTemplate || isLoading}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                {isLoading ? "Generating..." : "Generate Certificates"}
-              </Button>
-
-              {generatedCertificates.length > 0 && (
-                <>
-                  <Button onClick={handleIssueCertificates} className="w-full" disabled={isLoading}>
-                    <Send className="h-4 w-4 mr-2" />
-                    {isLoading ? "Issuing..." : `Issue ${generatedCertificates.length} Certificate(s)`}
-                  </Button>
-
-                  <div className="text-sm text-gray-600">
-                    <p className="font-medium">Generated Certificates:</p>
-                    <ul className="mt-2 space-y-1">
-                      {generatedCertificates.slice(0, 3).map((cert) => (
-                        <li key={cert.id} className="text-xs">
-                          • {cert.recipient}
-                        </li>
-                      ))}
-                      {generatedCertificates.length > 3 && (
-                        <li className="text-xs text-gray-500">... and {generatedCertificates.length - 3} more</li>
-                      )}
-                    </ul>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
-  )
+  );
 }
