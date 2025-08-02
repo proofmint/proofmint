@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
-import { JWT_SECRET } from "@/lib/const";
+import { JWT_SECRET, NODE_ENV } from "@/lib/const";
 import { Prisma } from "@prisma/client";
 import { cleanEmail } from "@/lib/utils";
 
@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
 
     (await cookies()).set("token", token, {
       httpOnly: true,
-      secure: true,
+      secure: NODE_ENV === "production",
       maxAge: 60 * 60 * 24, // 1 day
       path: "/",
     });
