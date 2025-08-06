@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge, BadgeClaimLink, Issuer, User } from "@prisma/client";
-import { CheckCircle, Clock } from "lucide-react";
+import { CheckCircle, Clock, Loader2 } from "lucide-react";
 import { useSession } from "@/contexts/SessionContext";
 
 type ClaimDetails = BadgeClaimLink & {
@@ -24,6 +24,7 @@ export default function ClaimPage() {
 
   const [claim, setClaim] = useState<ClaimDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   const buttonText = useMemo(() => {
     let text = "Loading...";
@@ -66,7 +67,6 @@ export default function ClaimPage() {
 
   const handleClaim = async () => {
     if (isSessionLoading) return;
-
     if (!isSessionLoading && !user) {
       localStorage.setItem(
         "pendingClaim",
@@ -84,6 +84,7 @@ export default function ClaimPage() {
       return;
     }
 
+    setIsClaiming(true);
     const res = await fetch(`/api/claim/${claimId}`, {
       method: "POST",
     });
@@ -94,6 +95,7 @@ export default function ClaimPage() {
         description: "Failed to claim badge",
         variant: "destructive",
       });
+      setIsClaiming(false);
       return;
     }
 
@@ -104,6 +106,7 @@ export default function ClaimPage() {
       description: "Badge claimed successfully!",
     });
 
+    setIsClaiming(false);
     router.push(`/receiver/badges`);
   };
 
@@ -171,8 +174,9 @@ export default function ClaimPage() {
           <Button
             onClick={handleClaim}
             className="w-full"
-            disabled={buttonText.disabled}
+            disabled={buttonText.disabled || isClaiming}
           >
+            {isClaiming && <Loader2 className="animate-spin mr-2" />}
             {buttonText.text}
           </Button>
         </CardContent>
