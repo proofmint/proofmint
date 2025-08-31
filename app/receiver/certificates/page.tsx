@@ -28,6 +28,7 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  Share2,
 } from "lucide-react";
 
 type Certificate = {
@@ -72,10 +73,10 @@ export default function CertificatesPage() {
   ) => {
     setLoadingIds((prev) => [...prev, id]);
     try {
-      const res = await fetch("/api/receiver/certificates/action", {
+      const res = await fetch(`/api/certificates/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ certificateId: id, action }),
+        body: JSON.stringify({ action }),
       });
       if (!res.ok) throw new Error("Failed to update certificate status");
 
@@ -138,7 +139,7 @@ export default function CertificatesPage() {
   useEffect(() => {
     const fetchCertificates = async () => {
       try {
-        const response = await fetch("/api/receiver/certificates");
+        const response = await fetch("/api/certificates");
         if (!response.ok) throw new Error("Failed to fetch certificates");
         const rawData = await response.json();
 
@@ -356,6 +357,22 @@ export default function CertificatesPage() {
                         </a>
                       </Button>
                     )}
+                    <Button size="sm" variant="outline" className="flex-1 bg-transparent" onClick={() => {
+                      const text = `I just received the ${certificate.title} certificate on ProofMint!`;
+                      const url = certificate.blockchainUrl || window.location.href;
+                      const xUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+                      window.open(xUrl, "_blank");
+                    }}>
+                      <Share2 className="h-4 w-4 mr-1" /> Share on X
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 bg-transparent" onClick={() => {
+                      const text = `I just received the ${certificate.title} certificate on ProofMint!`;
+                      const url = certificate.blockchainUrl || window.location.href;
+                      const liUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&mini=true&summary=${encodeURIComponent(text)}`;
+                      window.open(liUrl, "_blank");
+                    }}>
+                      <Share2 className="h-4 w-4 mr-1" /> Share on LinkedIn
+                    </Button>
                   </>
                 )}
 

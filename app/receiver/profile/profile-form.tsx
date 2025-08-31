@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const profileSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
+  organizationName: z.string().min(1, "Organization name is required"),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -24,13 +25,19 @@ export type ProfileData = {
   walletAddress: string;
   balance: number;
   memberSince: Date;
+  organizationName: string;
 };
 
-
-export default function ProfileForm({ profileData }: { profileData: ProfileData }) {
+export default function ProfileForm({
+  profileData,
+  isLoading,
+}: {
+  profileData: ProfileData | null;
+  isLoading: boolean;
+}) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
-  
+
   const {
     control,
     handleSubmit,
@@ -38,14 +45,15 @@ export default function ProfileForm({ profileData }: { profileData: ProfileData 
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      fullName: profileData.fullName,
+      fullName: profileData?.fullName || "",
+      organizationName: profileData?.organizationName || "",
     },
   });
 
   const onSubmit = (data: ProfileFormValues) => {
     startTransition(async () => {
       try {
-        const response = await fetch("/api/receiver/profile", {
+        const response = await fetch("/api/profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -54,7 +62,7 @@ export default function ProfileForm({ profileData }: { profileData: ProfileData 
         if (!response.ok) {
           throw new Error("Failed to update profile");
         }
-        
+
         toast({
           title: "Success",
           description: "Your profile has been updated successfully.",
@@ -80,49 +88,81 @@ export default function ProfileForm({ profileData }: { profileData: ProfileData 
           <CardHeader>
             <CardTitle>Profile Information</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent
+            className={`space-y-4 ${isLoading ? "opacity-50 bg-muted" : ""}`}
+          >
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <Controller
                 name="fullName"
                 control={control}
-                render={({ field }: { field: any }) => <Input id="fullName" {...field} />}
+                render={({ field }: { field: any }) => (
+                  <Input id="fullName" {...field} />
+                )}
               />
-              {errors.fullName && <p className="text-sm text-red-500">{errors.fullName.message}</p>}
-            </div>
-            
-            <div className="space-y-1 pt-4">
-                <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">Email</p>
-                <p className="text-sm text-foreground">{profileData.email}</p>
-            </div>
-
-            <div className="space-y-1">
-                <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">Wallet Address</p>
-                <p className="text-sm text-foreground break-all">{profileData.walletAddress}</p>
-            </div>
-            
-            <div className="space-y-1">
-                <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">Algo Balance</p>
-                <p className="text-sm text-foreground">{profileData.balance.toFixed(4)} ALGO</p>
-            </div>
-
-            <div className="space-y-1">
-                <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">Member Since</p>
-                <p className="text-sm text-foreground">
-                {new Date(profileData.memberSince).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                })}
+              {errors.fullName && (
+                <p className="text-sm text-red-500">
+                  {errors.fullName.message}
                 </p>
+              )}
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="organizationName">College Name</Label>
+              <Controller
+                name="organizationName"
+                control={control}
+                render={({ field }: { field: any }) => (
+                  <Input id="organizationName" {...field} />
+                )}
+              />
+              {errors.organizationName && (
+                <p className="text-sm text-red-500">
+                  {errors.organizationName.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1 pt-4">
+              <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                Email
+              </p>
+              <p className="text-sm text-foreground">{profileData?.email}</p>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                Wallet Address
+              </p>
+              <p className="text-sm text-foreground break-all">
+                {profileData?.walletAddress}
+              </p>
+            </div>
+
+            {/* Hidden Algo balance for receivers */}
+
+            <div className="space-y-1">
+              <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                Member Since
+              </p>
+              <p className="text-sm text-foreground">
+                {profileData?.memberSince &&
+                  new Date(profileData.memberSince).toLocaleDateString(
+                    "en-US",
+                    {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    }
+                  )}
+              </p>
+            </div>
           </CardContent>
         </Card>
         <div className="mt-6 flex justify-end">
-            <Button type="submit" disabled={!isDirty || isPending}>
-                {isPending ? "Saving..." : "Save Changes"}
-            </Button>
+          <Button type="submit" disabled={!isDirty || isPending}>
+            {isPending ? "Saving..." : "Save Changes"}
+          </Button>
         </div>
       </form>
     </div>

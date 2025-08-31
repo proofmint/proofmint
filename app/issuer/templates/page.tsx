@@ -45,7 +45,7 @@ export default function TemplatesPage() {
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const response = await fetch("/api/issuer/template")
+        const response = await fetch("/api/templates")
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
@@ -84,12 +84,12 @@ export default function TemplatesPage() {
     }
 
     try {
-      const response = await fetch(`/api/issuer/template`, {
+      const response = await fetch(`/api/templates/${templateId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ id: templateId }),
+        body: JSON.stringify({}),
       })
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

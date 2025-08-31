@@ -161,7 +161,7 @@ export default function CreateTemplatePage() {
       dynamicFields: template.fields,
     }
 
-    const res = await fetch("/api/issuer/template", {
+    const res = await fetch("/api/templates/create", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

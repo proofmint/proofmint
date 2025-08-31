@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Eye, Send } from "lucide-react";
+import { FileText, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CertificateTemplate } from "@prisma/client";
 interface CertificateData {
@@ -50,15 +50,29 @@ export default function CreateCertificatePage() {
   const [selectedTemplate, setSelectedTemplate] =
     useState<CertificateTemplate | null>(null);
   const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchTemplates = async () => {
-      const res = await fetch("/api/issuer/template");
+      const res = await fetch("/api/templates");
       const data = await res.json();
       console.log(data);
       setTemplates(data);
     };
     fetchTemplates();
+  }, []);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      try {
+        const res = await fetch("/api/issuer/credits");
+        const data = await res.json();
+        setCreditBalance(data.creditBalance ?? 0);
+      } catch (e) {
+        setCreditBalance(0);
+      }
+    };
+    fetchCredits();
   }, []);
 
   useEffect(() => {
@@ -171,6 +185,12 @@ export default function CreateCertificatePage() {
       return;
     }
 
+    // Ensure at least 1 credit available
+    if ((creditBalance ?? 0) < 1) {
+      toast({ title: "Insufficient credits", description: "You need at least 1 credit to issue a certificate.", variant: "destructive" });
+      return;
+    }
+
     setIsLoading(true);
 
     // Generate the certificate preview
@@ -203,7 +223,7 @@ export default function CreateCertificatePage() {
     formData.append("properties", JSON.stringify(properties));
 
     try {
-      const response = await fetch("/api/issuer/certificates/create", {
+      const response = await fetch("/api/certificates/create", {
         method: "POST",
         body: formData,
       });

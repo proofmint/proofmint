@@ -24,7 +24,7 @@ export default function BadgesPage() {
   useEffect(() => {
     const fetchBadges = async () => {
       try {
-        const res = await fetch("/api/issuer/badges")
+        const res = await fetch("/api/badges")
         if (!res.ok) throw new Error("Failed to fetch badges")
         const data = await res.json()
         setBadges(data)

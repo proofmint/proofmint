@@ -1,6 +1,6 @@
-import { adminWallet, VAULT_HOST, VAULT_TOKEN } from "./const";
+import { VAULT_HOST, VAULT_TOKEN } from "./const";
 import algosdk from "algosdk";
-import { cleanEmail, concatArrays, getHash } from "./utils";
+import { cleanString, concatArrays, getHash } from "./utils";
 
 export const getWallet = async (key: string) => {
   try {
@@ -71,17 +71,12 @@ export const signTransactions = async (
   const txnGroup = algosdk.assignGroupID(txObjects);
   const signatures: Uint8Array[] = [];
   for (let i = 0; i < txnGroup.length; i++) {
-    if (transactions[i].signerAddress === adminWallet.addr.toString()) {
-      const signature = txnGroup[i].rawSignTxn(adminWallet.sk);
-      signatures.push(signature);
-    } else {
-      const bytes = txnGroup[i].bytesToSign();
-      const signature = await signBytes(
-        bytes,
-        getHash(cleanEmail(transactions[i].signerEmail))
-      );
-      signatures.push(signature);
-    }
+    const bytes = txnGroup[i].bytesToSign();
+    const signature = await signBytes(
+      bytes,
+      getHash(cleanString(transactions[i].signerEmail))
+    );
+    signatures.push(signature);
   }
   const txnGroupWithSignatures = txnGroup.map((txn, index) => {
     return txn.attachSignature(

@@ -13,7 +13,7 @@ interface User {
   id: string;
   fullName: string;
   email: string;
-  role: "issuer" | "receiver";
+  role: "ISSUER" | "RECEIVER" | "ADMIN";
   issuerId?: string;
 }
 
@@ -60,7 +60,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async () => {
     const user = await fetchUser();
     if (user) {
-      router.push(`/${user.role}/dashboard`);
+      router.push(`/${user.role.toLowerCase()}/dashboard`);
     }
   };
 

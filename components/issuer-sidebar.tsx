@@ -51,6 +51,16 @@ const menuItems = [
     icon: FileText,
   },
   {
+    title: "Bulk Certificates",
+    url: "/issuer/certificates/bulk",
+    icon: FileText,
+  },
+  {
+    title: "Purchase Credits",
+    url: "/issuer/credits",
+    icon: Shield,
+  },
+  {
     title: "Profile",
     url: "/issuer/profile",
     icon: User,

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useSession } from "@/contexts/SessionContext";
+import CommonHeader from "@/components/CommonHeader";
 
 function VerifyTokenPage() {
   const [status, setStatus] = useState<"verifying" | "success" | "error">(
@@ -65,17 +66,24 @@ function VerifyTokenPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-center">Magic Link Verification</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center">{renderContent()}</CardContent>
-      </Card>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
+      <CommonHeader />
+
+      <div className="flex items-center justify-center mt-10 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center">
+              Magic Link Verification
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center">
+            {renderContent()}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
-
 
 export default function VerifyTokenPageWrapper() {
   return (

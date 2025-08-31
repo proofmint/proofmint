@@ -11,7 +11,7 @@ import { useSession } from "@/contexts/SessionContext";
 
 type ClaimDetails = BadgeClaimLink & {
   badge: Badge;
-  issuer: Issuer;
+  issuer: Issuer & { user: User };
   receiverUsers: User[];
 };
 
@@ -48,7 +48,7 @@ export default function ClaimPage() {
     if (!claimId) return;
     const fetchBadgeDetails = async () => {
       try {
-        const res = await fetch(`/api/claim/${claimId}`);
+        const res = await fetch(`/api/badges/claim/${claimId}`);
         if (!res.ok) throw new Error("Failed to fetch badge details");
         const data = await res.json();
         setClaim(data);
@@ -85,7 +85,7 @@ export default function ClaimPage() {
     }
 
     setIsClaiming(true);
-    const res = await fetch(`/api/claim/${claimId}`, {
+    const res = await fetch(`/api/badges/claim/${claimId}`, {
       method: "POST",
     });
 
@@ -146,7 +146,7 @@ export default function ClaimPage() {
                   <span className="text-sm text-muted-foreground">
                     Issued by{" "}
                     <span className="font-bold">
-                      {claim.issuer.organizationName}
+                      {claim.issuer.user.organizationName}
                     </span>
                   </span>
                 </div>

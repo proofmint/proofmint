@@ -51,7 +51,7 @@ export default function ProfileForm({ profileData }: { profileData: ProfileData 
   const onSubmit = (data: ProfileFormValues) => {
     startTransition(async () => {
       try {
-        const response = await fetch("/api/issuer/profile", {
+        const response = await fetch("/api/profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -128,8 +128,8 @@ export default function ProfileForm({ profileData }: { profileData: ProfileData 
             </div>
             
             <div className="space-y-1">
-                <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">Algo Balance</p>
-                <p className="text-sm text-foreground">{profileData.balance.toFixed(4)} ALGO</p>
+                <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">Credits</p>
+                <p className="text-sm text-foreground">{profileData.balance} credits</p>
             </div>
 
             <div className="space-y-1">

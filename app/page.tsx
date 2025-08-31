@@ -10,32 +10,12 @@ import {
 import { Badge, Shield, Zap } from "lucide-react";
 import Logo from "@/public/images/Logo.png";
 import Image from "next/image";
+import CommonHeader from "@/components/CommonHeader";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
-      {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Image src={Logo} alt="Logo" width={44} height={48} />
-            <span className="text-2xl font-bold text-gray-900">ProofMint</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Link href="/auth/login">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
-            <Link href="/auth/register">
-              <Button
-                style={{ backgroundColor: "#9681FA" }}
-                className="hover:opacity-90"
-              >
-                Get Started
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <CommonHeader />
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">

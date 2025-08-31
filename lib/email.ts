@@ -5,7 +5,7 @@ import {
   EMAIL_SERVER_PASSWORD,
   EMAIL_SERVER_PORT,
   EMAIL_SERVER_USER,
-  NODE_ENV,
+  APPLICATION_HOST,
 } from "./const";
 
 const transporter = nodemailer.createTransport({
@@ -18,38 +18,33 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendVerificationEmail = async (
-  host: string,
-  email: string,
-  token: string
-) => {
-  const confirmLink = `${host}/auth/verify-email?token=${token}`;
+export const sendVerificationEmail = async (email: string, token: string) => {
+  const confirmLink = `${APPLICATION_HOST}/auth/verify-email?token=${token}`;
 
   await transporter.sendMail({
     from: EMAIL_FROM,
     to: email,
     subject: "Verify your email address",
-    html: `<p>Click <a href="${confirmLink}">here</a> to verify your email.</p>`,
+    html: `<p>Click <a href="${confirmLink}">here</a> to verify your email.<br>Valid for 1 hour.</p>`,
   });
 };
 
 export const sendOtpEmail = async (email: string, otp: string) => {
-
   await transporter.sendMail({
     from: EMAIL_FROM,
     to: email,
     subject: "Your One-Time Password",
-    html: `<p>Your OTP is: <strong>${otp}</strong></p>`,
+    html: `<p>Your OTP is: <strong>${otp}</strong><br>Valid for 10 minutes.</p>`,
   });
 };
 
-export const sendMagicLinkEmail = async (host: string, email: string, token: string) => {
-  const magicLink = `${host}/auth/verify-token?token=${token}`;
-  
+export const sendMagicLinkEmail = async (email: string, token: string) => {
+  const magicLink = `${APPLICATION_HOST}/auth/verify-token?token=${token}`;
+
   await transporter.sendMail({
     from: EMAIL_FROM,
     to: email,
     subject: "Your Magic Login Link",
-    html: `<p>Click <a href="${magicLink}">here</a> to log in.</p>`,
+    html: `<p>Click <a href="${magicLink}">here</a> to log in.<br>Valid for 10 minutes.</p>`,
   });
 };

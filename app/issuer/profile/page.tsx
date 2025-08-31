@@ -33,15 +33,15 @@ async function getIssuerProfileData(): Promise<ProfileData> {
       redirect("/issuer/dashboard");
     }
 
-    const { deltaBalance } = await getDetailedBalances(user.walletAddress);
+    const issuer = await prisma.issuer.findUnique({ where: { userId }, select: { creditBalance: true } });
 
     return {
       fullName: user.fullName,
       email: user.email,
-      organizationName: user.issuerProfile.organizationName,
+      organizationName: user.organizationName,
       websiteUrl: user.issuerProfile.websiteUrl,
       walletAddress: user.walletAddress,
-      balance: deltaBalance,
+      balance: issuer?.creditBalance ?? 0,
       memberSince: user.createdAt,
     };
   } catch (error) {

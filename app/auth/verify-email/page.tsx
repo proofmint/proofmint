@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import CommonHeader from "@/components/CommonHeader";
 
 function VerifyEmailPage() {
   const [status, setStatus] = useState<
@@ -68,13 +69,18 @@ function VerifyEmailPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-center">Email Verification</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center">{renderContent()}</CardContent>
-      </Card>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
+      <CommonHeader />
+      <div className="flex items-center justify-center mt-10 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center">Email Verification</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center">
+            {renderContent()}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

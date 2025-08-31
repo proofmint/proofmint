@@ -1,18 +1,17 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import crypto from "crypto";
-import { NextRequest } from "next/server";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export function getHash(data: string) {
   return crypto.createHash("sha256").update(data).digest("hex");
 }
 
-export function cleanEmail(email: string) {
-  return email.toLowerCase().trim();
+export function cleanString(string: string) {
+  return string.toLowerCase().trim();
 }
 
 export const calculateSHA256 = async (
@@ -27,6 +26,10 @@ export const calculateSHA256 = async (
   }
 };
 
+export const getEmailsHash = async (emails: string[]) => {
+  return getHash(emails.join(","));
+};
+
 export function concatArrays(...arrs: ArrayLike<number>[]) {
   const size = arrs.reduce((sum, arr) => sum + arr.length, 0);
   const c = new Uint8Array(size);
@@ -38,10 +41,4 @@ export function concatArrays(...arrs: ArrayLike<number>[]) {
   }
 
   return c;
-}
-
-export function getRequestOrigin(req: NextRequest) {
-  const protocol = req.headers.get("x-forwarded-proto") || "http";
-  const host = req.headers.get("host");
-  return `${protocol}://${host}`;
 }

@@ -3,9 +3,9 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
-import { JWT_SECRET, NODE_ENV } from "@/lib/const";
+import { ADMIN_EMAIL, ADMIN_PASSWORD, JWT_SECRET, NODE_ENV } from "@/lib/const";
 import { Prisma } from "@prisma/client";
-import { cleanEmail } from "@/lib/utils";
+import { cleanString } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     if (loginType === "otp") {
       const { email: rawEmail, otp } = payload;
 
-      const email = cleanEmail(rawEmail);
+      const email = cleanString(rawEmail);
 
       if (!email || !otp) {
         return NextResponse.json(
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     } else {
       const { email: rawEmail, password } = payload;
 
-      const email = cleanEmail(rawEmail);
+      const email = cleanString(rawEmail);
 
       if (!email || !password) {
         return NextResponse.json(
@@ -100,6 +100,38 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        const tokenPayload = {
+          userId: "admin",
+          email: ADMIN_EMAIL,
+          fullName: "Admin",
+          role: "ADMIN",
+          issuerId: null,
+        };
+
+        const token = jwt.sign(tokenPayload, JWT_SECRET, {
+          expiresIn: "1d",
+        });
+
+        (await cookies()).set("token", token, {
+          httpOnly: true,
+          secure: NODE_ENV === "production",
+          maxAge: 60 * 60 * 24, // 1 day
+          path: "/",
+        });
+
+        return NextResponse.json({
+          message: "Login successful",
+          user: {
+            id: "admin",
+            fullName: "Admin",
+            email: ADMIN_EMAIL,
+            role: "ADMIN",
+          },
+        });
+      }
+
       const foundUser = await prisma.user.findUnique({
         where: { email },
         include: { issuerProfile: true },
@@ -141,6 +173,27 @@ export async function POST(req: NextRequest) {
         { message: "Could not authenticate user." },
         { status: 500 }
       );
+    }
+
+    if (user.role === "ISSUER" && user.issuerProfile) {
+      if (user.issuerProfile.status === "PENDING") {
+        return NextResponse.json(
+          {
+            message:
+              "Your account is pending approval. Please wait for admin to approve it. This may take 6-12 hours.",
+          },
+          { status: 403 }
+        );
+      }
+      if (user.issuerProfile.status === "REJECTED") {
+        return NextResponse.json(
+          {
+            message:
+              "Your account is rejected. Please contact admin for more information.",
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const tokenPayload = {

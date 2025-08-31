@@ -21,6 +21,7 @@ import { Shield, Building, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Logo from "@/public/images/Logo.png";
 import Image from "next/image";
+import CommonHeader from "@/components/CommonHeader";
 
 export default function RegisterPage() {
   const [userType, setUserType] = useState<"issuer" | "receiver">("receiver");
@@ -75,10 +76,10 @@ export default function RegisterPage() {
       email,
       password,
       role: userType,
+      organizationName: target.orgName?.value,
     };
 
     if (!isReceiver) {
-      body.organizationName = target.orgName?.value;
       body.websiteUrl = target.website?.value;
     }
 
@@ -117,170 +118,193 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <Image src={Logo} alt="ProofMint" width={32} height={32} />
-            <span className="text-2xl font-bold">ProofMint</span>
-          </div>
-          <CardTitle>Create Your Account</CardTitle>
-          <CardDescription>
-            Join the future of digital credentialing
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* User Type Selection */}
-            <div className="space-y-3">
-              <Label className="text-base font-medium">I want to:</Label>
-              <RadioGroup
-                value={userType}
-                onValueChange={(value: "issuer" | "receiver") =>
-                  setUserType(value)
-                }
-                className="grid grid-cols-2 gap-4"
-              >
-                <Label className="cursor-pointer" htmlFor="issuer">
-                  <div className="flex w-full items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50">
-                    <RadioGroupItem value="issuer" id="issuer" />
-                    <div className="flex items-center space-x-2">
-                      <Building className="h-5 w-5 text-[#9681FA]" />
-                      <div>
-                        <span className="font-medium">Issue Credentials</span>
-                        <p className="text-xs text-gray-500">
-                          For organizations
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </Label>
-
-                <Label className="cursor-pointer" htmlFor="receiver">
-                  <div className="flex w-full items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50">
-                    <RadioGroupItem value="receiver" id="receiver" />
-                    <div className="flex items-center space-x-2">
-                      <User className="h-5 w-5 text-[#9681FA]" />
-                      <div>
-                        <span className="font-medium">Receive Credentials</span>
-                        <p className="text-xs text-gray-500">For individuals</p>
-                      </div>
-                    </div>
-                  </div>
-                </Label>
-              </RadioGroup>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
+      <CommonHeader />
+      <div className="flex items-center justify-center mt-6 p-4">
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <Image src={Logo} alt="ProofMint" width={32} height={32} />
+              <span className="text-2xl font-bold">ProofMint</span>
             </div>
+            <CardTitle>Create Your Account</CardTitle>
+            <CardDescription>
+              Join the future of digital credentialing
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* User Type Selection */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">I want to:</Label>
+                <RadioGroup
+                  value={userType}
+                  onValueChange={(value: "issuer" | "receiver") =>
+                    setUserType(value)
+                  }
+                  className="grid grid-cols-2 gap-4"
+                >
+                  <Label className="cursor-pointer" htmlFor="issuer">
+                    <div className="flex w-full items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50">
+                      <RadioGroupItem value="issuer" id="issuer" />
+                      <div className="flex items-center space-x-2">
+                        <Building className="h-5 w-5 text-[#9681FA]" />
+                        <div>
+                          <span className="font-medium">Issue Credentials</span>
+                          <p className="text-xs text-gray-500">
+                            For organizations
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </Label>
 
-            {userType === "issuer" ? (
-              // Issuer Registration Form
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="orgName">Organization Name *</Label>
-                    <Input
-                      id="orgName"
-                      placeholder="Acme University"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      type="url"
-                      placeholder="https://acme.edu"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="contactPerson">Contact Person *</Label>
-                    <Input id="contactPerson" placeholder="John Doe" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Official Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="admin@acme.edu"
-                      required
-                    />
-                  </div>
-                </div>
-
-
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password *</Label>
-                    <Input id="password" type="password" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
-                    <Input id="confirmPassword" type="password" required />
-                  </div>
-                </div>
+                  <Label className="cursor-pointer" htmlFor="receiver">
+                    <div className="flex w-full items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50">
+                      <RadioGroupItem value="receiver" id="receiver" />
+                      <div className="flex items-center space-x-2">
+                        <User className="h-5 w-5 text-[#9681FA]" />
+                        <div>
+                          <span className="font-medium">
+                            Receive Credentials
+                          </span>
+                          <p className="text-xs text-gray-500">
+                            For individuals
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </Label>
+                </RadioGroup>
               </div>
-            ) : (
-              // Receiver Registration Form
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name *</Label>
-                    <Input id="firstName" placeholder="John" required />
+
+              {userType === "issuer" ? (
+                // Issuer Registration Form
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="orgName">Organization Name *</Label>
+                      <Input
+                        id="orgName"
+                        placeholder="Acme University"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="website">Website</Label>
+                      <Input
+                        id="website"
+                        type="url"
+                        placeholder="https://acme.edu"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name *</Label>
-                    <Input id="lastName" placeholder="Doe" required />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="contactPerson">Contact Person *</Label>
+                      <Input
+                        id="contactPerson"
+                        placeholder="John Doe"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Official Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="admin@acme.edu"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password *</Label>
+                      <Input id="password" type="password" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">
+                        Confirm Password *
+                      </Label>
+                      <Input id="confirmPassword" type="password" required />
+                    </div>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="john@example.com"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password *</Label>
-                    <Input id="password" type="password" required />
+              ) : (
+                // Receiver Registration Form
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name *</Label>
+                      <Input id="firstName" placeholder="John" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name *</Label>
+                      <Input id="lastName" placeholder="Doe" required />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
-                    <Input id="confirmPassword" type="password" required />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email Address *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="john@example.com"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="orgName">College Name *</Label>
+                      <Input
+                        id="orgName"
+                        placeholder="Vardhaman College of Engineering"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password *</Label>
+                      <Input id="password" type="password" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">
+                        Confirm Password *
+                      </Label>
+                      <Input id="confirmPassword" type="password" required />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <Button
-              type="submit"
-              className="w-full"
-              style={{ backgroundColor: "#9681FA" }}
-              disabled={isLoading}
-            >
-              {isLoading ? "Creating Account..." : "Create Account"}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{" "}
-              <Link
-                href="/auth/login"
-                className="text-[#9681FA] hover:underline"
+              <Button
+                type="submit"
+                className="w-full"
+                style={{ backgroundColor: "#9681FA" }}
+                disabled={isLoading}
               >
-                Sign in
-              </Link>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+                {isLoading ? "Creating Account..." : "Create Account"}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Already have an account?{" "}
+                <Link
+                  href="/auth/login"
+                  className="text-[#9681FA] hover:underline"
+                >
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendMagicLinkEmail } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
-import { getRequestOrigin } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   try {
-    const origin = getRequestOrigin(req);
     const { email } = await req.json();
 
     if (!email) {
@@ -31,7 +29,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await sendMagicLinkEmail(origin, email, token.token);
+    await sendMagicLinkEmail(email, token.token);
 
     return NextResponse.json({ message: "Magic link sent." }, { status: 200 });
   } catch (error) {

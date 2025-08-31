@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       select: { role: true, email: true },
     });
 
-    if (!user || user.role !== "receiver") {
+    if (!user || user.role !== "RECEIVER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -40,25 +40,25 @@ export async function GET(req: NextRequest) {
         where: { receiverEmail: user.email },
       }),
       prisma.issuedBadge.count({
-        where: { receiverEmail: user.email, status: "pending" },
+        where: { receiverEmail: user.email, status: "PENDING" },
       }),
       prisma.issuedBadge.count({
-        where: { receiverEmail: user.email, status: "claimed" },
+        where: { receiverEmail: user.email, status: "CLAIMED" },
       }),
       prisma.issuedBadge.count({
-        where: { receiverEmail: user.email, status: "rejected" },
+        where: { receiverEmail: user.email, status: "REJECTED" },
       }),
       prisma.issuedCertificate.count({
         where: { receiverEmail: user.email },
       }),
       prisma.issuedCertificate.count({
-        where: { receiverEmail: user.email, status: "pending" },
+        where: { receiverEmail: user.email, status: "PENDING" },
       }),
       prisma.issuedCertificate.count({
-        where: { receiverEmail: user.email, status: "claimed" },
+        where: { receiverEmail: user.email, status: "CLAIMED" },
       }),
       prisma.issuedCertificate.count({
-        where: { receiverEmail: user.email, status: "rejected" },
+        where: { receiverEmail: user.email, status: "REJECTED" },
       }),
     ]);
 

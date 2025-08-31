@@ -1,5 +1,11 @@
 import algosdk from "algosdk";
-import { algodClient, adminWallet } from "./const";
+import {
+  algodClient,
+  ADMIN_WALLET,
+  OPERATIONAL_WALLET,
+  ONBOARDING_WALLET,
+} from "./const";
+import { signTransactions } from "./vault";
 
 export const getDetailedBalances = async (address: string) => {
   const r = await algodClient.accountInformation(address).do();
@@ -15,36 +21,53 @@ export const getDetailedBalances = async (address: string) => {
   };
 };
 
-export const fundFromMasterWallet = async (
+export const fundFromWallet = async (
   reciever: string,
-  amount: number
+  amount: number,
+  sender: "admin" | "operational" | "onboarding"
 ): Promise<string | null> => {
   const suggestedParams = await algodClient.getTransactionParams().do();
-  const xferTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-    sender: adminWallet.addr,
-    receiver: reciever,
-    suggestedParams,
-    amount: algosdk.algosToMicroalgos(amount),
-  });
-  const signedXferTxn = xferTxn.signTxn(adminWallet.sk);
+  const senderAddress =
+    sender === "admin"
+      ? ADMIN_WALLET
+      : sender === "operational"
+      ? OPERATIONAL_WALLET
+      : ONBOARDING_WALLET;
+  const group = [
+    {
+      txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: senderAddress,
+        receiver: reciever,
+        suggestedParams,
+        amount: algosdk.algosToMicroalgos(amount),
+      }),
+      signerEmail: sender,
+      signerAddress: senderAddress,
+    },
+  ];
   try {
-    await algodClient.sendRawTransaction(signedXferTxn).do();
-    const result = await algosdk.waitForConfirmation(
-      algodClient,
-      xferTxn.txID().toString(),
-      3
-    );
-    var confirmedRound = result.confirmedRound;
-    return xferTxn.txID();
+    const { bytes, txnIds } = await signTransactions(group);
+    await algodClient.sendRawTransaction(bytes).do();
+    await algosdk.waitForConfirmation(algodClient, txnIds[0], 3);
+    return txnIds[0];
   } catch (e: any) {
     return null;
   }
 };
 
-export const ensureFund = async (address: string, minDeltaAmount: number) => {
+export const ensureOnboardingFund = async (
+  address: string,
+  minDeltaAmount: number
+) => {
   const { deltaBalance } = await getDetailedBalances(address);
   if (deltaBalance < minDeltaAmount) {
-    if (!(await fundFromMasterWallet(address, minDeltaAmount - deltaBalance))) {
+    if (
+      !(await fundFromWallet(
+        address,
+        minDeltaAmount - deltaBalance,
+        "onboarding"
+      ))
+    ) {
       throw new Error("Failed to Fund To Cover Delta Amount");
     }
   }

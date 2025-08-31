@@ -28,7 +28,7 @@ import { useSession } from "@/contexts/SessionContext"
 import Papa from "papaparse"
 import { useRouter } from "next/navigation"
 
-const BADGE_MINT_COST = 0.5 // Cost per NFT in Algos
+const BADGE_MINT_COST_CREDITS = 1 // Cost per badge in credits
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
 
 interface CustomProperty {
@@ -36,11 +36,7 @@ interface CustomProperty {
   value: string
 }
 
-interface BalanceDetails {
-  balance: number
-  minBalance: number
-  deltaBalance: number
-}
+interface CreditDetails { creditBalance: number }
 
 export default function CreateBadgePage() {
   const { user } = useSession()
@@ -55,30 +51,30 @@ export default function CreateBadgePage() {
   const [badgeType, setBadgeType] = useState("")
   const [recipients, setRecipients] = useState("")
   const [claimLimit, setClaimLimit] = useState("1")
-  const [balanceDetails, setBalanceDetails] = useState<BalanceDetails | null>(null)
-  const [isBalanceLoading, setIsBalanceLoading] = useState(true)
+  const [creditDetails, setCreditDetails] = useState<CreditDetails | null>(null)
+  const [isCreditLoading, setIsCreditLoading] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    const fetchBalance = async () => {
+    const fetchCredits = async () => {
       try {
-        setIsBalanceLoading(true)
-        const res = await fetch("/api/issuer/balance")
-        if (!res.ok) throw new Error("Failed to fetch balance")
+        setIsCreditLoading(true)
+        const res = await fetch("/api/issuer/credits")
+        if (!res.ok) throw new Error("Failed to fetch credits")
         const data = await res.json()
-        setBalanceDetails(data)
+        setCreditDetails(data)
       } catch (error) {
         console.error(error)
         toast({
           title: "Error",
-          description: "Could not load wallet balance.",
+          description: "Could not load credits.",
           variant: "destructive",
         })
       } finally {
-        setIsBalanceLoading(false)
+        setIsCreditLoading(false)
       }
     }
-    fetchBalance()
+    fetchCredits()
   }, [toast])
 
   const validateField = (name: string, value: any) => {
@@ -128,9 +124,9 @@ export default function CreateBadgePage() {
     return recipients.split(",").filter((email) => email.trim() !== "").length
   }, [distributionMethod, recipients, claimLimit])
 
-  const estimatedCost = useMemo(() => recipientCount * BADGE_MINT_COST, [recipientCount])
+  const estimatedCost = useMemo(() => recipientCount * BADGE_MINT_COST_CREDITS, [recipientCount])
 
-  const hasSufficientBalance = balanceDetails?.deltaBalance !== undefined && balanceDetails.deltaBalance >= estimatedCost
+  const hasSufficientCredits = (creditDetails?.creditBalance ?? 0) >= estimatedCost
 
   const addCustomProperty = () => {
     if (newProperty.key && newProperty.value) {
@@ -152,7 +148,7 @@ export default function CreateBadgePage() {
     validateField("description", form.description.value)
     
     const hasErrors = Object.values(errors).some(error => error !== "")
-    if (hasErrors || !badgeImage || !user || !hasSufficientBalance) {
+    if (hasErrors || !badgeImage || !user || !hasSufficientCredits) {
       toast({ title: "Error", description: "Please fix the errors and ensure you have sufficient balance.", variant: "destructive" })
       return
     }
@@ -168,7 +164,7 @@ export default function CreateBadgePage() {
     formData.append("claimLimit", claimLimit)
 
     try {
-      const response = await fetch("/api/issuer/badges/create", {
+      const response = await fetch("/api/badges/create", {
         method: "POST",
         body: formData,
       })
@@ -293,14 +289,14 @@ export default function CreateBadgePage() {
                 
                 <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
                   <h4 className="font-semibold">Cost Estimation</h4>
-                  {isBalanceLoading ? <p>Loading balance...</p> : (
+                  {isCreditLoading ? <p>Loading credits...</p> : (
                     <>
-                      <div className="flex justify-between text-sm"><span>Usable Balance:</span><span>{balanceDetails?.deltaBalance.toFixed(4) ?? "0.00"} ALGO</span></div>
+                      <div className="flex justify-between text-sm"><span>Credits Available:</span><span>{creditDetails?.creditBalance ?? 0} credits</span></div>
                       <div className="flex justify-between text-sm"><span>Badges to Mint:</span><span>{recipientCount}</span></div>
-                      <div className="flex justify-between font-bold"><span>Estimated Cost:</span><span>{estimatedCost.toFixed(4)} ALGO</span></div>
-                      <div className="flex justify-between text-sm text-muted-foreground"><span>Balance After:</span><span>{((balanceDetails?.deltaBalance ?? 0) - estimatedCost).toFixed(4)} ALGO</span></div>
-                      {!hasSufficientBalance && (
-                        <div className="flex items-center text-red-600 mt-2 text-sm"><AlertCircle className="h-4 w-4 mr-2" />Insufficient funds for this transaction.</div>
+                      <div className="flex justify-between font-bold"><span>Estimated Cost:</span><span>{estimatedCost} credits</span></div>
+                      <div className="flex justify-between text-sm text-muted-foreground"><span>Credits After:</span><span>{(creditDetails?.creditBalance ?? 0) - estimatedCost}</span></div>
+                      {!hasSufficientCredits && (
+                        <div className="flex items-center text-red-600 mt-2 text-sm"><AlertCircle className="h-4 w-4 mr-2" />Insufficient credits for this issuance.</div>
                       )}
                     </>
                   )}
@@ -311,7 +307,7 @@ export default function CreateBadgePage() {
         </div>
 
         <div className="flex justify-end">
-          <Button type="submit" style={{ backgroundColor: "#9681FA" }} disabled={isLoading || !hasSufficientBalance || (recipientCount === 0)}>
+          <Button type="submit" style={{ backgroundColor: "#9681FA" }} disabled={isLoading || !hasSufficientCredits || (recipientCount === 0)}>
             {isLoading ? "Creating..." : `Create & Issue ${recipientCount} Badges`}
           </Button>
         </div>

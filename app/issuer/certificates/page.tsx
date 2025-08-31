@@ -30,7 +30,7 @@ export default function CertificatesPage() {
   useEffect(() => {
     const fetchCertificates = async () => {
       try {
-        const res = await fetch("/api/issuer/certificates");
+        const res = await fetch("/api/certificates");
         if (!res.ok) throw new Error("Failed to fetch certificates");
         const data = await res.json();
         setCertificates(data.certificates);

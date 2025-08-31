@@ -3,8 +3,8 @@
 
 // 1. Define the data source and generator
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -13,20 +13,20 @@ generator client {
 
 // 2. Define Enums for roles and statuses
 enum Role {
-  receiver
-  issuer
+  RECEIVER
+  ISSUER
 }
 
 enum IssuerStatus {
-  pending
-  approved
-  rejected
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum CredentialStatus {
-  pending
-  claimed
-  rejected
+  PENDING
+  CLAIMED
+  REJECTED
 }
 
 enum AuthTokenType {
@@ -35,151 +35,260 @@ enum AuthTokenType {
   EMAIL_VERIFICATION
 }
 
+// Enums for new features
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TransactionType {
+  PURCHASE
+  MINT_BADGE
+  MINT_CERTIFICATE
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
 
 // 3. Define the data models
 
 // Core Models
 model User {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  fullName       String
-  passwordHash   String?   // For email-password login
-  role           Role
-  walletAddress  String
-  emailVerified  Boolean   @default(false)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id               String   @id @default(cuid())
+  email            String   @unique
+  fullName         String
+  organizationName String
+  passwordHash     String? // For email-password login
+  role             Role
+  walletAddress    String
+  emailVerified    Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations
-  authTokens         AuthToken[]
-  issuerProfile      Issuer?             // One-to-one with Issuer
+  authTokens    AuthToken[]
+  issuerProfile Issuer? // One-to-one with Issuer
 }
 
 model AuthToken {
-  id        String      @id @default(cuid())
-  token     String      @unique
+  id        String        @id @default(cuid())
+  token     String
   type      AuthTokenType
   userId    String
   expiresAt DateTime
-  createdAt DateTime    @default(now())
+  createdAt DateTime      @default(now())
 
   // Relations
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Issuer {
-  id                String    @id @default(cuid())
-  userId            String    @unique
-  organizationName  String
-  websiteUrl        String?
-  status            IssuerStatus @default(pending)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id            String       @id @default(cuid())
+  userId        String       @unique
+  websiteUrl    String?
+  status        IssuerStatus @default(PENDING)
+  creditBalance Int          @default(0) // New: For credit system
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   // Relations
-  user              User      @relation(fields: [userId], references: [id])
-  createdBadges     Badge[]
-  issuedBadges      IssuedBadge[]       @relation("IssuerBadges")
-  createdClaimLinks BadgeClaimLink[]
-  createdTemplates  CertificateTemplate[]
-  issuedCertificates IssuedCertificate[] @relation("IssuerCertificates")
+  user                   User                    @relation(fields: [userId], references: [id])
+  createdBadges          Badge[]
+  issuedBadges           IssuedBadge[]           @relation("IssuerBadges")
+  createdClaimLinks      BadgeClaimLink[]
+  createdTemplates       CertificateTemplate[]
+  issuedCertificates     IssuedCertificate[]     @relation("IssuerCertificates")
+  bulkIssuanceJobs       BulkIssuanceJob[] // New
+  creditPurchaseRequests CreditPurchaseRequest[] // New
+  creditTransactions     CreditTransaction[] // New
+  coupons                Coupon[] // New: For issuer-specific coupons
+  couponUsages           CouponUsage[] // New
 }
-
 
 // Badge-Related Models
 model Badge {
-  id                String    @id @default(cuid())
-  assetId           String
-  issuerId          String
-  name              String
-  description       String?
-  imageUrl          String
-  unitName          String?
-  badgeType         String?
-  customProperties  Json?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id               String   @id @default(cuid())
+  assetId          String
+  issuerId         String
+  name             String
+  description      String?
+  imageUrl         String
+  unitName         String?
+  badgeType        String?
+  customProperties Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations
-  issuer            Issuer        @relation(fields: [issuerId], references: [id])
-  issuedInstances   IssuedBadge[]
-  claimLinks        BadgeClaimLink[]
+  issuer          Issuer          @relation(fields: [issuerId], references: [id])
+  issuedInstances IssuedBadge[]
+  claimLink       BadgeClaimLink?
 }
 
 model BadgeClaimLink {
-  id          String      @id @default(cuid())
-  badgeId     String
-  issuerId    String
-  limit       Int         // Max number of claims allowed
-  claimCount  Int         @default(0)
-  isActive    Boolean     @default(true)
-  expiresAt   DateTime?
-  createdAt   DateTime    @default(now())
+  id         String    @id @default(cuid())
+  badgeId    String    @unique
+  issuerId   String
+  limit      Int // Max number of claims allowed
+  claimCount Int       @default(0)
+  isActive   Boolean   @default(true)
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   // Relations
-  badge         Badge           @relation(fields: [badgeId], references: [id])
-  issuer        Issuer          @relation(fields: [issuerId], references: [id])
-  issuedBadges  IssuedBadge[]   // Tracks all badges claimed via this link
+  badge        Badge         @relation(fields: [badgeId], references: [id])
+  issuer       Issuer        @relation(fields: [issuerId], references: [id])
+  issuedBadges IssuedBadge[] // Tracks all badges claimed via this link
 }
 
 model IssuedBadge {
-  id              String            @id @default(cuid())
+  id              String           @id @default(cuid())
   badgeId         String
   receiverEmail   String
   issuerId        String
-  claimLinkId     String?           // Optional: links back to the claim link used
-  status          CredentialStatus  @default(pending)
-  issuedAt        DateTime          @default(now())
+  claimLinkId     String? // Optional: links back to the claim link used
+  status          CredentialStatus @default(PENDING)
+  issuedAt        DateTime         @default(now())
   claimedAt       DateTime?
   transactionHash String?
-  tokenId         String?
 
   // Relations
-  badge           Badge   @relation(fields: [badgeId], references: [id])
-  issuer          Issuer  @relation("IssuerBadges", fields: [issuerId], references: [id])
-  claimLink       BadgeClaimLink? @relation(fields: [claimLinkId], references: [id])
+  badge     Badge           @relation(fields: [badgeId], references: [id])
+  issuer    Issuer          @relation("IssuerBadges", fields: [issuerId], references: [id])
+  claimLink BadgeClaimLink? @relation(fields: [claimLinkId], references: [id])
 }
-
 
 // Certificate-Related Models
 model CertificateTemplate {
-  id                  String    @id @default(cuid())
+  id                  String   @id @default(cuid())
   issuerId            String
   templateName        String
   templateDescription String
   backgroundImageUrl  String
-  dynamicFields       Json      // e.g., [{"fieldName": "Recipient", "x": 100, "y": 250}]
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  dynamicFields       Json // e.g., [{"fieldName": "Recipient", "x": 100, "y": 250}]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   // Relations
-  issuer              Issuer                @relation(fields: [issuerId], references: [id])
-  issuedInstances     IssuedCertificate[]
+  issuer           Issuer              @relation(fields: [issuerId], references: [id])
+  issuedInstances  IssuedCertificate[]
+  bulkIssuanceJobs BulkIssuanceJob[]
 }
 
 model IssuedCertificate {
-  id                  String            @id @default(cuid())
-  assetId             String
-  templateId          String
-  receiverEmail       String
-  issuerId            String
-  fieldData           Json              // e.g., {"Recipient": "Jane Doe"}
-  generatedImageUrl   String?
-  status              CredentialStatus  @default(pending)
-  issuedAt            DateTime          @default(now())
-  claimedAt           DateTime?
-  transactionHash     String?
-  tokenId             String?
+  id                String           @id @default(cuid())
+  assetId           String
+  templateId        String
+  receiverEmail     String
+  issuerId          String
+  jobId             String? // New: Link to bulk issuance job
+  fieldData         Json // e.g., {"Recipient": "Jane Doe"}
+  generatedImageUrl String
+  status            CredentialStatus @default(PENDING)
+  issuedAt          DateTime         @default(now())
+  claimedAt         DateTime?
+  transactionHash   String?
 
   // Relations
-  template            CertificateTemplate @relation(fields: [templateId], references: [id])
-  issuer              Issuer              @relation("IssuerCertificates", fields: [issuerId], references: [id])
+  template CertificateTemplate @relation(fields: [templateId], references: [id])
+  issuer   Issuer              @relation("IssuerCertificates", fields: [issuerId], references: [id])
+  job      BulkIssuanceJob?    @relation(fields: [jobId], references: [id])
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
+// New Model for Bulk Certificate Minting
+model BulkIssuanceJob {
+  id                    String    @id @default(cuid())
+  issuerId              String
+  certificateTemplateId String
+  recipientData         Json // Stores array of recipients and their field data
+  status                JobStatus @default(PENDING)
+  totalItems            Int
+  processedItems        Int       @default(0)
+  failedItems           Int       @default(0)
+  statusMessages        Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  @@id([identifier, token])
+  // Relations
+  issuer             Issuer              @relation(fields: [issuerId], references: [id])
+  template           CertificateTemplate @relation(fields: [certificateTemplateId], references: [id])
+  issuedCertificates IssuedCertificate[]
+}
+
+// New Models for Credit & Coupon System
+model CreditPurchaseRequest {
+  id                   String        @id @default(cuid())
+  issuerId             String
+  creditsRequested     Int
+  amountPaid           Decimal
+  paymentProofBase64   String        @db.LongText
+  referenceNumber      String
+  status               RequestStatus @default(PENDING)
+  adminNotes           String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  // Relations
+  issuer     Issuer       @relation(fields: [issuerId], references: [id])
+  couponUsed CouponUsage?
+}
+
+model CreditTransaction {
+  id        String          @id @default(cuid())
+  issuerId  String
+  type      TransactionType
+  amount    Int // Positive for additions, negative for deductions
+  createdAt DateTime        @default(now())
+
+  // Relations
+  issuer Issuer @relation(fields: [issuerId], references: [id])
+}
+
+model Coupon {
+  id                String       @id @default(cuid())
+  code              String       @unique
+  discountType      DiscountType
+  discountValue     Decimal
+  minPurchaseAmount Decimal?
+  maxUses           Int? // null for unlimited
+  uses              Int          @default(0)
+  issuerId          String? // For issuer-specific coupons
+  expiresAt         DateTime?
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  issuer Issuer?       @relation(fields: [issuerId], references: [id])
+  usages CouponUsage[]
+}
+
+model CouponUsage {
+  id                String   @id @default(cuid())
+  couponId          String
+  purchaseRequestId String   @unique // A coupon can be used for only one purchase request
+  issuerId          String
+  usedAt            DateTime @default(now())
+
+  // Relations
+  coupon          Coupon                @relation(fields: [couponId], references: [id])
+  purchaseRequest CreditPurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+  issuer          Issuer                @relation(fields: [issuerId], references: [id])
+}
+
+// Singleton table to store current credit price. Intentionally one column only.
+model CreditPrice {
+  id           String   @id @default("singleton")
+  value        Decimal
+  upiQrBase64  String?  @db.LongText
 }

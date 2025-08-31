@@ -56,7 +56,7 @@ export default function CreateTemplatePage() {
       // Fetch existing template data if templateId is provided
       const fetchTemplate = async () => {
         try {
-          const response = await fetch(`/api/issuer/template/${templateId}`)
+          const response = await fetch(`/api/templates/${templateId}`)
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`)
           }
@@ -192,14 +192,13 @@ export default function CreateTemplatePage() {
     const base64Image = await toBase64(template.backgroundImage)
 
     const payload = {
-      id : templateId,
       templateName: template.name,
       templateDescription: template.description,
       backgroundImageUrl: base64Image,
       dynamicFields: template.fields,
     }
 
-    const res = await fetch("/api/issuer/template", {
+    const res = await fetch(`/api/templates/${templateId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

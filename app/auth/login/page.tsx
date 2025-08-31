@@ -12,12 +12,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSession } from "@/contexts/SessionContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Logo from "@/public/images/Logo.png";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import CommonHeader from "@/components/CommonHeader";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -28,7 +29,7 @@ export default function LoginPage() {
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const { toast } = useToast();
   const { login } = useSession();
-
+  const router = useRouter();
   const handleSendOtp = async () => {
     if (!email) {
       toast({
@@ -115,10 +116,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleLogin = async (
-    loginType: "password" | "otp",
-    payload: any
-  ) => {
+  const handleLogin = async (loginType: "password" | "otp", payload: any) => {
     setIsLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
@@ -153,120 +151,39 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <Image src={Logo} alt="ProofMint" width={32} height={32} />
-            <span className="text-2xl font-bold">ProofMint</span>
-          </div>
-          <CardTitle>Welcome Back</CardTitle>
-          <CardDescription>
-            Choose your preferred sign-in method
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="password">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="password">Password</TabsTrigger>
-              <TabsTrigger value="otp">OTP</TabsTrigger>
-              <TabsTrigger value="magiclink">Magic Link</TabsTrigger>
-            </TabsList>
-            <TabsContent value="password">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleLogin("password", { email, password });
-                }}
-                className="space-y-4 pt-4"
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  style={{ backgroundColor: "#9681FA" }}
-                  disabled={isLoading}
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
+      <CommonHeader />
+      <div className="flex items-center justify-center mt-10 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <Image src={Logo} alt="ProofMint" width={32} height={32} />
+              <span className="text-2xl font-bold">ProofMint</span>
+            </div>
+            <CardTitle>Welcome Back</CardTitle>
+            <CardDescription>
+              Choose your preferred sign-in method
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="password">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="password">Password</TabsTrigger>
+                <TabsTrigger value="otp">OTP</TabsTrigger>
+                <TabsTrigger value="magiclink">Magic Link</TabsTrigger>
+              </TabsList>
+              <TabsContent value="password">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleLogin("password", { email, password });
+                  }}
+                  className="space-y-4 pt-4"
                 >
-                  {isLoading ? "Signing In..." : "Sign In"}
-                </Button>
-              </form>
-            </TabsContent>
-            <TabsContent value="otp">
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="otp-email">Email Address</Label>
-                  <Input
-                    id="otp-email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={showOtpInput}
-                  />
-                </div>
-                {showOtpInput && (
                   <div className="space-y-2">
-                    <Label htmlFor="otp">One-Time Password</Label>
+                    <Label htmlFor="email">Email Address</Label>
                     <Input
-                      id="otp"
-                      type="text"
-                      placeholder="Enter your OTP"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                      required
-                    />
-                  </div>
-                )}
-                {!showOtpInput ? (
-                  <Button
-                    onClick={handleSendOtp}
-                    className="w-full"
-                    style={{ backgroundColor: "#9681FA" }}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Sending..." : "Send OTP"}
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => handleLogin("otp", { email, otp })}
-                    className="w-full"
-                    style={{ backgroundColor: "#9681FA" }}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Verifying..." : "Verify OTP & Sign In"}
-                  </Button>
-                )}
-              </div>
-            </TabsContent>
-            <TabsContent value="magiclink">
-              {!magicLinkSent ? (
-                <div className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="magic-email">Email Address</Label>
-                    <Input
-                      id="magic-email"
+                      id="email"
                       type="email"
                       placeholder="Enter your email"
                       value={email}
@@ -274,39 +191,123 @@ export default function LoginPage() {
                       required
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
                   <Button
-                    onClick={handleSendMagicLink}
+                    type="submit"
                     className="w-full"
                     style={{ backgroundColor: "#9681FA" }}
                     disabled={isLoading}
                   >
-                    {isLoading ? "Sending..." : "Send Magic Link"}
+                    {isLoading ? "Signing In..." : "Sign In"}
                   </Button>
+                </form>
+              </TabsContent>
+              <TabsContent value="otp">
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="otp-email">Email Address</Label>
+                    <Input
+                      id="otp-email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={showOtpInput}
+                    />
+                  </div>
+                  {showOtpInput && (
+                    <div className="space-y-2">
+                      <Label htmlFor="otp">One-Time Password</Label>
+                      <Input
+                        id="otp"
+                        type="text"
+                        placeholder="Enter your OTP"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
+                  {!showOtpInput ? (
+                    <Button
+                      onClick={handleSendOtp}
+                      className="w-full"
+                      style={{ backgroundColor: "#9681FA" }}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Sending..." : "Send OTP"}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handleLogin("otp", { email, otp })}
+                      className="w-full"
+                      style={{ backgroundColor: "#9681FA" }}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Verifying..." : "Verify OTP & Sign In"}
+                    </Button>
+                  )}
                 </div>
-              ) : (
-                <div className="text-center pt-4">
-                  <p>
-                    We've sent a magic link to your email. Click the link to log
-                    in.
-                  </p>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+              </TabsContent>
+              <TabsContent value="magiclink">
+                {!magicLinkSent ? (
+                  <div className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="magic-email">Email Address</Label>
+                      <Input
+                        id="magic-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSendMagicLink}
+                      className="w-full"
+                      style={{ backgroundColor: "#9681FA" }}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Sending..." : "Send Magic Link"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center pt-4">
+                    <p>
+                      We've sent a magic link to your email. Click the link to
+                      log in.
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link
-                href="/auth/register"
-                className="text-[#9681FA] hover:underline"
-              >
-                Sign up
-              </Link>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{" "}
+                <Link
+                  href="/auth/register"
+                  className="text-[#9681FA] hover:underline"
+                >
+                  Sign up
+                </Link>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

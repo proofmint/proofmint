@@ -18,7 +18,7 @@ export default function IssuerLayout({
 
   useEffect(() => {
     if (isLoading) return;
-    if (!user || user.role !== "issuer") {
+    if (!user || user.role !== "ISSUER") {
       router.push("/auth/login")
     }
   }, [router, user, isLoading])

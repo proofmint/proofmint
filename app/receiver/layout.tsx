@@ -19,7 +19,7 @@ export default function ReceiverLayout({
 
   useEffect(() => {
     if (isLoading) return;
-    if (!user || user.role !== "receiver") {
+    if (!user || user.role !== "RECEIVER") {
       router.push("/auth/login");
     }
     const pendingClaim = localStorage.getItem("pendingClaim");

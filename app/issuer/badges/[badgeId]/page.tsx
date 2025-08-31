@@ -53,7 +53,7 @@ export default function BadgeDetailPage() {
     if (!badgeId) return;
     const fetchBadgeDetails = async () => {
       try {
-        const res = await fetch(`/api/issuer/badges/${badgeId}`);
+        const res = await fetch(`/api/badges/${badgeId}`);
         if (!res.ok) throw new Error("Failed to fetch badge details");
         const data = await res.json();
         console.log(data);
@@ -154,7 +154,7 @@ export default function BadgeDetailPage() {
                     {badge.distributionType === "magic"
                       ? badge.claimLinks[0]?.claimCount || 0
                       : badge.issuedInstances.filter(
-                          (i) => i.status === "claimed"
+                          (i) => i.status === "CLAIMED"
                         ).length}
                   </p>
                   <p className="text-xs text-muted-foreground">Claimed</p>
@@ -246,9 +246,9 @@ export default function BadgeDetailPage() {
                       <TableCell>{instance.receiverEmail}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
-                          {instance.status === "claimed" ? (
+                          {instance.status === "CLAIMED" ? (
                             <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                          ) : instance.status === "pending" ? (
+                          ) : instance.status === "PENDING" ? (
                             <Clock className="h-4 w-4 mr-2 text-yellow-500" />
                           ) : (
                             <XCircle className="h-4 w-4 mr-2 text-red-500" />

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Ensure user is a valid, approved issuer
-    if (!user || user.role !== "issuer" || !user.issuerProfile) {
+    if (!user || user.role !== "ISSUER" || !user.issuerProfile) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       }),
       // Get total count of claimed badges
       prisma.issuedBadge.count({
-        where: { issuerId: user.issuerProfile.id, status: "claimed" },
+        where: { issuerId: user.issuerProfile.id, status: "CLAIMED" },
       }),
       // Get total count of all issued certificates
       prisma.issuedCertificate.count({
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       }),
       // Get total count of claimed certificates
       prisma.issuedCertificate.count({
-        where: { issuerId: user.issuerProfile.id, status: "claimed" },
+        where: { issuerId: user.issuerProfile.id, status: "CLAIMED" },
       }),
       // Get distinct recipient emails for badges
       prisma.issuedBadge.findMany({

@@ -4,8 +4,8 @@ import prisma from "@/lib/prisma";
 import { sendVerificationEmail } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
 import { getWallet } from "@/lib/vault";
-import { getHash, cleanEmail, getRequestOrigin } from "@/lib/utils";
-import { ensureFund } from "@/lib/blockchain";
+import { getHash, cleanString } from "@/lib/utils";
+import { ensureOnboardingFund } from "@/lib/blockchain";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,20 +18,11 @@ export async function POST(req: NextRequest) {
       websiteUrl,
     } = await req.json();
 
-    const origin = getRequestOrigin(req);
+    const email = cleanString(rawEmail);
 
-    const email = cleanEmail(rawEmail);
-
-    if (!name || !email || !password || !role) {
+    if (!name || !email || !password || !role || !organizationName) {
       return NextResponse.json(
         { message: "Missing required fields." },
-        { status: 400 }
-      );
-    }
-
-    if (role === "issuer" && !organizationName) {
-      return NextResponse.json(
-        { message: "Organization name is required for issuers." },
         { status: 400 }
       );
     }
@@ -56,7 +47,7 @@ export async function POST(req: NextRequest) {
             expiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour
           },
         });
-        await sendVerificationEmail(origin, email, token.token);
+        await sendVerificationEmail(email, token.token);
         return NextResponse.json(
           { message: "Verification email sent." },
           { status: 200 }
@@ -75,25 +66,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await ensureFund(walletAddress, 0.05);
+    await ensureOnboardingFund(walletAddress, 0.05);
 
     const user = await prisma.user.create({
       data: {
         fullName: name,
         email,
         passwordHash: hashedPassword,
-        role,
+        role: role.toUpperCase(),
         walletAddress: walletAddress,
+        organizationName: organizationName,
       },
     });
 
-    if (role === "issuer") {
+    if (role.toUpperCase() === "ISSUER") {
       await prisma.issuer.create({
         data: {
           userId: user.id,
-          organizationName: organizationName,
           websiteUrl: websiteUrl,
-          status: "approved",
+          status: "PENDING",
         },
       });
     }
@@ -107,13 +98,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await sendVerificationEmail(origin, email, token.token);
+    await sendVerificationEmail(email, token.token);
 
     return NextResponse.json(
       { message: "Verification email sent." },
       { status: 201 }
     );
   } catch (error) {
+    console.error("Register error:", error);
     return NextResponse.json(
       { message: "An unexpected error occurred." },
       { status: 500 }

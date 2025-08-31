@@ -25,6 +25,7 @@ import {
   Calendar,
   Loader2,
 } from "lucide-react"
+import { Share2 } from "lucide-react"
 
 
 type Badge = {
@@ -64,10 +65,10 @@ export default function BadgesPage() {
   const handleBadgeAction = async (id: string, action: "accept" | "reject") => {
     setLoadingIds(prev => [...prev, id])
     try {
-      const res = await fetch("/api/receiver/badges/action", {
+      const res = await fetch(`/api/badges/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ badgeId: id, action }),
+        body: JSON.stringify({ action }),
       })
       if (!res.ok) throw new Error("Failed to update badge status")
 
@@ -90,7 +91,7 @@ export default function BadgesPage() {
   useEffect(() => {
     const fetchBadges = async () => {
       try {
-        const response = await fetch("/api/receiver/badges")
+        const response = await fetch("/api/badges")
         if (!response.ok) throw new Error("Failed to fetch badges")
         const rawData = await response.json()
 
@@ -273,6 +274,26 @@ export default function BadgesPage() {
                       >
                         <ExternalLink className="h-4 w-4 mr-1" /> Verify
                       </a>
+                    </Button>
+                  )}
+                  {badge.status === "claimed" && (
+                    <Button size="sm" variant="outline" className="flex-1 bg-transparent" onClick={() => {
+                      const text = `I just earned the ${badge.title} badge on ProofMint!`;
+                      const url = badge.blockchainUrl || window.location.href;
+                      const xUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+                      window.open(xUrl, "_blank");
+                    }}>
+                      <Share2 className="h-4 w-4 mr-1" /> Share on X
+                    </Button>
+                  )}
+                  {badge.status === "claimed" && (
+                    <Button size="sm" variant="outline" className="flex-1 bg-transparent" onClick={() => {
+                      const text = `I just earned the ${badge.title} badge on ProofMint!`;
+                      const url = badge.blockchainUrl || window.location.href;
+                      const liUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&mini=true&summary=${encodeURIComponent(text)}`;
+                      window.open(liUrl, "_blank");
+                    }}>
+                      <Share2 className="h-4 w-4 mr-1" /> Share on LinkedIn
                     </Button>
                   )}
                 </div>

@@ -21,7 +21,7 @@ export async function middleware(req: NextRequest) {
         const { payload } = await jwtVerify(token, secret);
         const role = (payload as any).role;
         const url = req.nextUrl.clone();
-        url.pathname = `/${role}/dashboard`;
+        url.pathname = `/${role.toLowerCase()}/dashboard`;
         return NextResponse.redirect(url);
       } catch (error) {
         // Invalid token, allow access to public pages
@@ -43,13 +43,13 @@ export async function middleware(req: NextRequest) {
     const isIssuerRoute = pathname.startsWith("/issuer");
     const isReceiverRoute = pathname.startsWith("/receiver");
 
-    if (role === "issuer" && !isIssuerRoute) {
+    if (role === "ISSUER" && !isIssuerRoute) {
       const url = req.nextUrl.clone();
       url.pathname = "/issuer/dashboard";
       return NextResponse.redirect(url);
     }
 
-    if (role === "receiver" && !isReceiverRoute) {
+    if (role === "RECEIVER" && !isReceiverRoute) {
       const url = req.nextUrl.clone();
       url.pathname = "/receiver/dashboard";
       return NextResponse.redirect(url);

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const verificationToken = await prisma.authToken.findUnique({
+    const verificationToken = await prisma.authToken.findFirst({
       where: { token, type: "EMAIL_VERIFICATION" },
       include: { user: true },
     });
