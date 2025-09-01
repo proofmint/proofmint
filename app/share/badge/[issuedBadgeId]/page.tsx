@@ -8,9 +8,14 @@ function toAbsolute(url?: string | null): string | undefined {
   return `${APPLICATION_HOST}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
-export async function generateMetadata({ params }: { params: { issuedBadgeId: string } }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ issuedBadgeId: string }>;
+}): Promise<Metadata> {
+  const { issuedBadgeId } = await params;
   const data = await prisma.issuedBadge.findUnique({
-    where: { id: params.issuedBadgeId },
+    where: { id: issuedBadgeId },
     include: { badge: true, issuer: { include: { user: true } } },
   });
 
@@ -22,7 +27,8 @@ export async function generateMetadata({ params }: { params: { issuedBadgeId: st
   }
 
   const title = data.badge.name;
-  const description = data.badge.description || `Issued by ${data.issuer.user.organizationName}`;
+  const description =
+    data.badge.description || `Issued by ${data.issuer.user.organizationName}`;
   const imageUrl = toAbsolute(data.badge.imageUrl);
   const pageUrl = `${APPLICATION_HOST}/share/badge/${data.id}`;
 
@@ -55,9 +61,14 @@ export async function generateMetadata({ params }: { params: { issuedBadgeId: st
   };
 }
 
-export default async function PublicBadgePage({ params }: { params: { issuedBadgeId: string } }) {
+export default async function PublicBadgePage({
+  params,
+}: {
+  params: Promise<{ issuedBadgeId: string }>;
+}) {
+  const { issuedBadgeId } = await params;
   const data = await prisma.issuedBadge.findUnique({
-    where: { id: params.issuedBadgeId },
+    where: { id: issuedBadgeId },
     include: { badge: true, issuer: { include: { user: true } } },
   });
 
@@ -66,7 +77,9 @@ export default async function PublicBadgePage({ params }: { params: { issuedBadg
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Badge not found</h1>
-          <p className="text-gray-500 mt-2">The badge you are looking for does not exist.</p>
+          <p className="text-gray-500 mt-2">
+            The badge you are looking for does not exist.
+          </p>
         </div>
       </div>
     );
@@ -82,7 +95,9 @@ export default async function PublicBadgePage({ params }: { params: { issuedBadg
         />
         <div>
           <h1 className="text-3xl font-bold">{data.badge.name}</h1>
-          <p className="text-gray-600">Issued by {data.issuer.user.organizationName}</p>
+          <p className="text-gray-600">
+            Issued by {data.issuer.user.organizationName}
+          </p>
         </div>
       </div>
 
@@ -94,22 +109,27 @@ export default async function PublicBadgePage({ params }: { params: { issuedBadg
         <div>
           <h2 className="text-lg font-semibold mb-2">Badge Details</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {Object.entries((data.badge.customProperties as any) || {}).map(([k, v]) => (
-              <div key={k} className="flex justify-between text-sm bg-gray-50 p-2 rounded border">
-                <span className="text-gray-600">{k}</span>
-                <span className="font-medium text-gray-900">{String(v)}</span>
-              </div>
-            ))}
+            {Object.entries((data.badge.customProperties as any) || {}).map(
+              ([k, v]) => (
+                <div
+                  key={k}
+                  className="flex justify-between text-sm bg-gray-50 p-2 rounded border"
+                >
+                  <span className="text-gray-600">{k}</span>
+                  <span className="font-medium text-gray-900">{String(v)}</span>
+                </div>
+              )
+            )}
           </div>
         </div>
       )}
 
       <div className="text-sm text-gray-500">
         <p>Issued on {new Date(data.issuedAt).toLocaleDateString()}</p>
-        {data.claimedAt && <p>Claimed on {new Date(data.claimedAt).toLocaleDateString()}</p>}
+        {data.claimedAt && (
+          <p>Claimed on {new Date(data.claimedAt).toLocaleDateString()}</p>
+        )}
       </div>
     </div>
   );
 }
-
-
