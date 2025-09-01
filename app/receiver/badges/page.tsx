@@ -313,7 +313,9 @@ export default function BadgesPage() {
                       onClick={() => {
                         const text = `I just earned the ${badge.title} badge on ProofMint!`;
                         const shareUrl = `${window.location.origin}/share/badge/${badge.id}`;
-                        const xUrl = `/api/share/twitter?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}}`;
+                        const xUrl = `/api/share/twitter?text=${encodeURIComponent(
+                          text
+                        )}&url=${encodeURIComponent(shareUrl)}`;
                         window.open(xUrl, "_blank");
                       }}
                     >
@@ -328,7 +330,9 @@ export default function BadgesPage() {
                       onClick={() => {
                         const text = `I just earned the ${badge.title} badge on ProofMint!`;
                         const shareUrl = `${window.location.origin}/share/badge/${badge.id}`;
-                        const liUrl = `/api/share/linkedin?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
+                        const liUrl = `/api/share/linkedin?url=${encodeURIComponent(
+                          shareUrl
+                        )}&text=${encodeURIComponent(text)}`;
                         window.open(liUrl, "_blank");
                       }}
                     >

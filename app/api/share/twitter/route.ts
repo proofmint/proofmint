@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   // Twitter/X does not allow attaching arbitrary images via web intent.
   // Best effort: include image URL as part of the tweet body so the preview expands.
-  const tweet = `"${text}" ${url} ${image ?? ""}`.trim();
+  const tweet = `${text} ${url} ${image ?? ""}`.trim();
   const target = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}`;
   return NextResponse.redirect(target);
 }
