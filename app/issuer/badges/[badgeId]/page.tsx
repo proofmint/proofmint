@@ -35,7 +35,7 @@ type IssuedBadgeWithReceiver = IssuedBadge & {
 };
 
 type BadgeDetails = Badge & {
-  claimLinks: BadgeClaimLink[];
+  claimLink: BadgeClaimLink | null;
   issuedInstances: IssuedBadgeWithReceiver[];
   distributionType: "magic" | "email";
   receiverUsers: User[];
@@ -115,7 +115,7 @@ export default function BadgeDetailPage() {
 
   const claimLink =
     badge.distributionType === "magic"
-      ? `${window.location.origin}/claim/${badge.claimLinks[0]?.id}`
+      ? `${window.location.origin}/claim/${badge.claimLink?.id}`
       : "";
 
   return (
@@ -142,7 +142,7 @@ export default function BadgeDetailPage() {
                 <div className="flex flex-col items-center">
                   <p className="text-xl font-bold">
                     {badge.distributionType === "magic"
-                      ? badge.claimLinks[0]?.limit || 0
+                      ? badge.claimLink?.limit || 0
                       : badge.issuedInstances.length}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -152,7 +152,7 @@ export default function BadgeDetailPage() {
                 <div className="flex flex-col items-center">
                   <p className="text-xl font-bold">
                     {badge.distributionType === "magic"
-                      ? badge.claimLinks[0]?.claimCount || 0
+                      ? badge.claimLink?.claimCount || 0
                       : badge.issuedInstances.filter(
                           (i) => i.status === "CLAIMED"
                         ).length}
@@ -209,7 +209,7 @@ export default function BadgeDetailPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {badge.distributionType === "magic" && badge.claimLinks[0] && (
+              {badge.distributionType === "magic" && badge.claimLink && (
                 <div className="space-y-4 mb-4">
                   <div className="space-y-2">
                     <Label htmlFor="claimLink">Sharable Claim Link</Label>

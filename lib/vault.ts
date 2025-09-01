@@ -52,6 +52,7 @@ const signBytes = async (
     }),
   });
   const data = await res.json();
+  console.log(data);
   const rawSignature = data.data.signature.toString();
   const signature = rawSignature.split(":")[2];
   const signatureBuffer = Buffer.from(signature, "base64");
@@ -72,9 +73,15 @@ export const signTransactions = async (
   const signatures: Uint8Array[] = [];
   for (let i = 0; i < txnGroup.length; i++) {
     const bytes = txnGroup[i].bytesToSign();
+    const isEmail =
+      transactions[i].signerEmail !== "admin" &&
+      transactions[i].signerEmail !== "operational" &&
+      transactions[i].signerEmail !== "onboarding";
     const signature = await signBytes(
       bytes,
-      getHash(cleanString(transactions[i].signerEmail))
+      isEmail
+        ? getHash(cleanString(transactions[i].signerEmail))
+        : transactions[i].signerEmail
     );
     signatures.push(signature);
   }

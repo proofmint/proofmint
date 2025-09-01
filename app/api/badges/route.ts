@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
-import { JWT_SECRET } from "@/lib/const";
+import { ALGORAND_NETWORK, JWT_SECRET } from "@/lib/const";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -30,14 +30,19 @@ export async function GET(req: NextRequest) {
         },
       });
     } else {
-      badges = await prisma.issuedBadge.findMany({
+      const issuedBadges = await prisma.issuedBadge.findMany({
         where: { receiverEmail: userEmail },
         orderBy: { issuedAt: "desc" },
         include: {
           badge: true,
-          issuer: true,
+          issuer: {
+            include: {
+              user: true,
+            },
+          },
         },
       });
+      badges = { badges: issuedBadges, network: ALGORAND_NETWORK };
     }
 
     return NextResponse.json(badges);

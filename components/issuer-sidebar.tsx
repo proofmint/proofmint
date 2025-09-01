@@ -40,21 +40,21 @@ const menuItems = [
     url: "/issuer/badges",
     icon: Award,
   },
-  {
-    title: "Certificate Templates",
-    url: "/issuer/templates",
-    icon: Template,
-  },
-  {
-    title: "Certificates",
-    url: "/issuer/certificates",
-    icon: FileText,
-  },
-  {
-    title: "Bulk Certificates",
-    url: "/issuer/certificates/bulk",
-    icon: FileText,
-  },
+  // {
+  //   title: "Certificate Templates",
+  //   url: "/issuer/templates",
+  //   icon: Template,
+  // },
+  // {
+  //   title: "Certificates",
+  //   url: "/issuer/certificates",
+  //   icon: FileText,
+  // },
+  // {
+  //   title: "Bulk Certificates",
+  //   url: "/issuer/certificates/bulk",
+  //   icon: FileText,
+  // },
   {
     title: "Purchase Credits",
     url: "/issuer/credits",

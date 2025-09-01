@@ -110,6 +110,8 @@ export default function IssuerCreditsPage() {
       return toast({ title: "Enter credits", variant: "destructive" });
     if (!reference)
       return toast({ title: "Reference required", variant: "destructive" });
+    if (!proofUrl)
+      return toast({ title: "Payment proof required", variant: "destructive" });
     setSubmitting(true);
     try {
       // API: POST /api/issuer/credit-requests
@@ -120,7 +122,7 @@ export default function IssuerCreditsPage() {
         body: JSON.stringify({
           creditsRequested: qty,
           amountPaid: calcTotal || price * qty,
-          paymentProofBase64: proofUrl || null,
+          paymentProofBase64: proofUrl,
           referenceNumber: reference,
           couponCode: coupon || null,
         }),
@@ -219,7 +221,7 @@ export default function IssuerCreditsPage() {
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="proof">Payment Proof URL (optional)</Label>
+              <Label htmlFor="proof">Payment Proof URL</Label>
               <Input
                 id="proof"
                 type="file"
@@ -235,6 +237,7 @@ export default function IssuerCreditsPage() {
                   };
                   reader.readAsDataURL(file);
                 }}
+                required
               />
             </div>
             {upiQrBase64 && (

@@ -9,7 +9,7 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const { pathname } = req.nextUrl;
 
-  if(pathname.startsWith("/claim/")){
+  if(pathname.startsWith("/claim/") || pathname.startsWith("/share/")){
     return NextResponse.next();
   }
 

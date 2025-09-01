@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 const schema = z.object({
   creditsRequested: z.coerce.number().int().positive(),
   amountPaid: z.coerce.number().positive(),
-  paymentProofBase64: z.string().trim().min(1).optional().nullable(),
+  paymentProofBase64: z.string().trim().min(1),
   referenceNumber: z.string().trim().min(1),
   couponCode: z.string().trim().optional().nullable(),
 });
