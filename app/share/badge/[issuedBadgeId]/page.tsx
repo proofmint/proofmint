@@ -91,8 +91,12 @@ export default async function PublicBadgePage({
   const pageUrl = `${APPLICATION_HOST}/share/badge/${data.id}`;
 
   const shareText = `I just earned the ${title} badge on ProofMint!`;
-  const xUrl = `/api/share/twitter?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(pageUrl)}`;
-  const liUrl = `/api/share/linkedin?url=${encodeURIComponent(pageUrl)}&text=${encodeURIComponent(shareText)}`;
+  const xUrl = `/api/share/twitter?text=${encodeURIComponent(
+    shareText
+  )}&url=${encodeURIComponent(pageUrl)}`;
+  const liUrl = `/api/share/linkedin?url=${encodeURIComponent(
+    pageUrl
+  )}&text=${encodeURIComponent(shareText)}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -100,11 +104,20 @@ export default async function PublicBadgePage({
         <div className="relative overflow-hidden rounded-2xl border bg-white shadow-sm">
           <div className="bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 p-8 flex flex-col md:flex-row items-center gap-6">
             <div className="w-28 h-28 md:w-36 md:h-36 rounded-xl bg-white/70 backdrop-blur border shadow-sm overflow-hidden flex items-center justify-center">
-              <img src={imageUrl} alt={title} className="object-contain w-full h-full" />
+              <img
+                src={imageUrl}
+                alt={title}
+                className="object-contain w-full h-full"
+              />
             </div>
             <div className="text-center md:text-left">
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{title}</h1>
-              <p className="text-gray-700 mt-2">Issued by {data.issuer.user.organizationName}</p>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+                {title}
+              </h1>
+              <p className="text-gray-700 mt-2">
+                Issued by {data.issuer.user.organizationName}
+              </p>
+              {/* 
               <div className="mt-4 flex flex-wrap gap-3 justify-center md:justify-start">
                 <a href={xUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm bg-white hover:bg-gray-50">
                   <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.487 11.24H16.17l-5.26-6.874-6.014 6.874H1.588l7.73-8.83L1.125 2.25h6.06l4.754 6.231 6.305-6.231Zm-1.158 18.5h1.833L7.01 4.125H5.05l12.036 16.625Z"/></svg>
@@ -115,6 +128,7 @@ export default async function PublicBadgePage({
                   Share on LinkedIn
                 </a>
               </div>
+              */}
             </div>
           </div>
           <div className="p-6 md:p-8 space-y-6">
@@ -124,23 +138,49 @@ export default async function PublicBadgePage({
                 <p className="text-gray-700 leading-relaxed">{description}</p>
               </div>
             )}
-            {data.badge.customProperties && Object.keys((data.badge.customProperties as any) || {}).length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-base font-semibold">Badge Details</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {Object.entries((data.badge.customProperties as any) || {}).map(([k, v]) => (
-                    <div key={k} className="rounded-lg border bg-gray-50 px-3 py-2 text-sm flex items-center justify-between">
-                      <span className="text-gray-600">{k}</span>
-                      <span className="font-medium text-gray-900">{String(v)}</span>
-                    </div>
-                  ))}
+            {data.badge.customProperties &&
+              Object.keys((data.badge.customProperties as any) || {}).length >
+                0 && (
+                <div className="space-y-3">
+                  <h3 className="text-base font-semibold">Badge Details</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {Object.entries(
+                      (data.badge.customProperties as any) || {}
+                    ).map(([k, v]) => (
+                      <div
+                        key={k}
+                        className="rounded-lg border bg-gray-50 px-3 py-2 text-sm flex items-center justify-between"
+                      >
+                        <span className="text-gray-600">{k}</span>
+                        <span className="font-medium text-gray-900">
+                          {String(v)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="rounded-lg border p-3 bg-white">
+                <span className="text-gray-500">Issued</span>
+                <div className="font-medium">
+                  {new Date(data.issuedAt).toLocaleDateString()}
                 </div>
               </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="rounded-lg border p-3 bg-white"><span className="text-gray-500">Issued</span><div className="font-medium">{new Date(data.issuedAt).toLocaleDateString()}</div></div>
-              <div className="rounded-lg border p-3 bg-white"><span className="text-gray-500">Claimed</span><div className="font-medium">{data.claimedAt ? new Date(data.claimedAt).toLocaleDateString() : "Not claimed"}</div></div>
-              <div className="rounded-lg border p-3 bg-white"><span className="text-gray-500">Issuer</span><div className="font-medium">{data.issuer.user.organizationName}</div></div>
+              <div className="rounded-lg border p-3 bg-white">
+                <span className="text-gray-500">Claimed</span>
+                <div className="font-medium">
+                  {data.claimedAt
+                    ? new Date(data.claimedAt).toLocaleDateString()
+                    : "Not claimed"}
+                </div>
+              </div>
+              <div className="rounded-lg border p-3 bg-white">
+                <span className="text-gray-500">Issuer</span>
+                <div className="font-medium">
+                  {data.issuer.user.organizationName}
+                </div>
+              </div>
             </div>
           </div>
         </div>

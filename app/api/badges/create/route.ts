@@ -11,6 +11,7 @@ import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
 import { cleanString } from "@/lib/utils";
 import { uploadToPinata, uploadJsonToPinata } from "@/lib/pinata";
+import { isValidEmail } from "@/lib/validators";
 
 const createBadgeSchema = z.object({
   badgeName: z
@@ -110,7 +111,18 @@ export async function POST(req: NextRequest) {
       .split(",")
       .map(cleanString)
       .filter(Boolean);
-    const recipientEmailsSet = new Set(formattedRecipients);
+
+    if (distributionMethod === "email") {
+      const invalidRecipients = formattedRecipients.filter((e) => !isValidEmail(e));
+      if (invalidRecipients.length > 0) {
+        return NextResponse.json(
+          { error: `Invalid recipient emails: ${invalidRecipients.join(", ")}` },
+          { status: 400 }
+        );
+      }
+    }
+
+    const recipientEmailsSet = new Set(formattedRecipients.filter(isValidEmail));
     const recipientEmails = Array.from(recipientEmailsSet);
 
     const numToMint =

@@ -27,6 +27,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useSession } from "@/contexts/SessionContext";
 import Papa from "papaparse";
 import { useRouter } from "next/navigation";
+import { isValidEmail, uniqueValidEmails } from "@/lib/validators";
 
 const BADGE_MINT_COST_CREDITS = 1; // Cost per badge in credits
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -124,22 +125,29 @@ export default function CreateBadgePage() {
           .flat()
           .map((email) => email.trim())
           .filter((email) => email.length > 0);
-        const emails: string[] = [];
-        for (var i = 0; i < rawEmails.length; i++) {
-          if (!emails.includes(rawEmails[i])) {
-            emails.push(rawEmails[i]);
-          }
-        }
+
+        const validFromCsv = uniqueValidEmails(rawEmails);
+
         const previousEmails = recipients
           .trim()
           .split(",")
-          .map((email) => email.trim());
-        const emailsToBeAdded = emails
-          .filter((email) => !previousEmails.includes(email))
-          .join(", ");
-        setRecipients((prev) =>
-          prev ? `${prev}, ${emailsToBeAdded}` : emailsToBeAdded
-        );
+          .map((email) => email.trim())
+          .filter((email) => email.length > 0);
+        const previousSetLower = new Set(previousEmails.map((x) => x.toLowerCase()));
+        const toAdd = validFromCsv.filter((email) => !previousSetLower.has(email.toLowerCase()));
+        const emailsToBeAdded = toAdd.join(", ");
+        if (emailsToBeAdded) {
+          setRecipients((prev) => (prev ? `${prev}, ${emailsToBeAdded}` : emailsToBeAdded));
+        }
+
+        const invalidFromCsv = rawEmails.filter((e) => !isValidEmail(e));
+        if (invalidFromCsv.length > 0) {
+          toast({
+            title: "Some emails were skipped",
+            description: `${invalidFromCsv.length} invalid email(s) ignored from CSV`,
+            variant: "destructive",
+          });
+        }
       },
       error: (err) => {
         toast({
@@ -152,12 +160,31 @@ export default function CreateBadgePage() {
     e.target.value = ""; // Reset file input
   };
 
+  const parsedRecipientInputs = useMemo(() => {
+    return recipients
+      .split(",")
+      .map((e) => e.trim())
+      .filter((e) => e.length > 0);
+  }, [recipients]);
+
+  const validRecipientEmails = useMemo(() => {
+    return uniqueValidEmails(parsedRecipientInputs);
+  }, [parsedRecipientInputs]);
+
+  const invalidRecipientEmails = useMemo(() => {
+    const invalidUnique = new Set<string>();
+    for (const e of parsedRecipientInputs) {
+      if (!isValidEmail(e)) invalidUnique.add(e.toLowerCase());
+    }
+    return Array.from(invalidUnique);
+  }, [parsedRecipientInputs]);
+
   const recipientCount = useMemo(() => {
     if (distributionMethod === "magic") {
       return parseInt(claimLimit, 10) || 0;
     }
-    return recipients.split(",").filter((email) => email.trim() !== "").length;
-  }, [distributionMethod, recipients, claimLimit]);
+    return validRecipientEmails.length;
+  }, [distributionMethod, claimLimit, validRecipientEmails.length]);
 
   const estimatedCost = useMemo(
     () => recipientCount * BADGE_MINT_COST_CREDITS,
@@ -204,7 +231,29 @@ export default function CreateBadgePage() {
     formData.append("customProperties", JSON.stringify(customProperties));
     formData.append("distributionMethod", distributionMethod);
     formData.append("badgeType", badgeType);
-    formData.append("recipients", recipients);
+    if (distributionMethod === "email") {
+      if (validRecipientEmails.length === 0) {
+        toast({
+          title: "Invalid recipients",
+          description: "Provide at least one valid email.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      if (invalidRecipientEmails.length > 0) {
+        toast({
+          title: "Fix invalid emails",
+          description: `Please correct ${invalidRecipientEmails.length} invalid email(s).`,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      formData.set("recipients", validRecipientEmails.join(", "));
+    } else {
+      formData.append("recipients", recipients);
+    }
     formData.append("claimLimit", claimLimit);
 
     try {
@@ -459,6 +508,22 @@ export default function CreateBadgePage() {
                       accept=".csv"
                       onChange={handleCsvUpload}
                     />
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Valid emails:</span>
+                        <span>{validRecipientEmails.length}</span>
+                      </div>
+                      <div
+                        className={`flex justify-between ${
+                          invalidRecipientEmails.length > 0
+                            ? "text-red-600"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        <span>Invalid emails:</span>
+                        <span>{invalidRecipientEmails.length}</span>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -517,7 +582,10 @@ export default function CreateBadgePage() {
             type="submit"
             style={{ backgroundColor: "#9681FA" }}
             disabled={
-              isLoading || !hasSufficientCredits || recipientCount === 0
+              isLoading ||
+              !hasSufficientCredits ||
+              recipientCount === 0 ||
+              (distributionMethod === "email" && invalidRecipientEmails.length > 0)
             }
           >
             {isLoading
