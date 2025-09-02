@@ -120,10 +120,16 @@ export default function CreateBadgePage() {
 
     Papa.parse<string[]>(file, {
       complete: (results) => {
-        const emails = results.data
+        const rawEmails = results.data
           .flat()
           .map((email) => email.trim())
           .filter((email) => email.length > 0);
+        const emails: string[] = [];
+        for (var i = 0; i < rawEmails.length; i++) {
+          if (!emails.includes(rawEmails[i])) {
+            emails.push(rawEmails[i]);
+          }
+        }
         const previousEmails = recipients
           .trim()
           .split(",")
