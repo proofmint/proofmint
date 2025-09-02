@@ -186,7 +186,7 @@ export default function RegisterPage() {
                       <Label htmlFor="orgName">Organization Name *</Label>
                       <Input
                         id="orgName"
-                        placeholder="Acme University"
+                        placeholder="Rejolt Edtech"
                         required
                       />
                     </div>
@@ -195,7 +195,7 @@ export default function RegisterPage() {
                       <Input
                         id="website"
                         type="url"
-                        placeholder="https://acme.edu"
+                        placeholder="https://rejolt.com"
                       />
                     </div>
                   </div>
@@ -205,7 +205,7 @@ export default function RegisterPage() {
                       <Label htmlFor="contactPerson">Contact Person *</Label>
                       <Input
                         id="contactPerson"
-                        placeholder="John Doe"
+                        placeholder="Akash Mallareddy"
                         required
                       />
                     </div>
@@ -214,7 +214,7 @@ export default function RegisterPage() {
                       <Input
                         id="email"
                         type="email"
-                        placeholder="admin@acme.edu"
+                        placeholder="akash@rejolt.com"
                         required
                       />
                     </div>
@@ -239,11 +239,11 @@ export default function RegisterPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name *</Label>
-                      <Input id="firstName" placeholder="John" required />
+                      <Input id="firstName" placeholder="Akash" required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Last Name *</Label>
-                      <Input id="lastName" placeholder="Doe" required />
+                      <Input id="lastName" placeholder="Mallareddy" required />
                     </div>
                   </div>
 
@@ -253,15 +253,15 @@ export default function RegisterPage() {
                       <Input
                         id="email"
                         type="email"
-                        placeholder="john@example.com"
+                        placeholder="akash.mallareddy@gmail.com"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="orgName">College Name *</Label>
+                      <Label htmlFor="orgName">College/Organization Name *</Label>
                       <Input
                         id="orgName"
-                        placeholder="Vardhaman College of Engineering"
+                        placeholder="ABC Engineering College"
                         required
                       />
                     </div>
