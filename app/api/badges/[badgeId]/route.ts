@@ -18,7 +18,7 @@ export async function GET(
   const { badgeId } = await params;
 
   try {
-    const badge = await prisma.badge.findFirst({
+    const badge = await prisma.badge.findUnique({
       where: {
         id: badgeId,
       },
