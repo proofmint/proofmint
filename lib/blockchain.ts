@@ -55,20 +55,20 @@ export const fundFromWallet = async (
   }
 };
 
-export const ensureOnboardingFund = async (
-  address: string,
-  minDeltaAmount: number
-) => {
-  const { deltaBalance } = await getDetailedBalances(address);
-  if (deltaBalance < minDeltaAmount) {
-    if (
-      !(await fundFromWallet(
-        address,
-        minDeltaAmount - deltaBalance,
-        "onboarding"
-      ))
-    ) {
-      throw new Error("Failed to Fund To Cover Delta Amount");
-    }
+export const ensureOnboardingFund = async (address: string) => {
+  const { balance, minBalance } = await getDetailedBalances(address);
+
+  if (balance < minBalance && balance === 0) {
+    return {
+      txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: ONBOARDING_WALLET,
+        receiver: address,
+        amount: algosdk.algosToMicroalgos(0.1),
+        suggestedParams: await algodClient.getTransactionParams().do(),
+      }),
+      signerEmail: "onboarding",
+      signerAddress: ONBOARDING_WALLET,
+    };
   }
+  return null;
 };

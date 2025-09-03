@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ADMIN_WALLET, algodClient } from "@/lib/const";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
+import { ensureOnboardingFund } from "@/lib/blockchain";
 
 const schema = z.object({ adminNotes: z.string().optional().nullable() });
 
@@ -41,8 +42,13 @@ export async function POST(
       );
     }
 
+    const group = [];
+    const onboardingFund = await ensureOnboardingFund(request.issuer.user.walletAddress);
+    if (onboardingFund) {
+      group.push(onboardingFund);
+    }
     const suggestedParams = await algodClient.getTransactionParams().do();
-    const group = [
+    group.push(...[
       {
         txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: ADMIN_WALLET,
@@ -53,7 +59,7 @@ export async function POST(
         signerEmail: "admin",
         signerAddress: ADMIN_WALLET,
       },
-    ];
+    ]);
 
     const { bytes, txnIds } = await signTransactions(group);
     await algodClient.sendRawTransaction(bytes).do();

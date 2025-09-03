@@ -5,6 +5,7 @@ import { algodClient, JWT_SECRET, OPERATIONAL_WALLET } from "@/lib/const";
 import { jwtVerify } from "jose";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
+import { ensureOnboardingFund } from "@/lib/blockchain";
 
 export async function GET(
   req: NextRequest,
@@ -127,6 +128,11 @@ export async function POST(
       );
     }
 
+    const group = [];
+    const onboardingFund = await ensureOnboardingFund(user.walletAddress);
+    if (onboardingFund) {
+      group.push(onboardingFund);
+    }
     const suggestedParams = await algodClient.getTransactionParams().do();
     suggestedParams.flatFee = true;
     suggestedParams.fee = BigInt(3000);
@@ -134,7 +140,7 @@ export async function POST(
     feeDelegationParams.flatFee = true;
     feeDelegationParams.fee = BigInt(0);
 
-    const group = [
+    group.push(...[
       {
         txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: OPERATIONAL_WALLET,
@@ -167,7 +173,7 @@ export async function POST(
         signerEmail: claim.issuer.user.email,
         signerAddress: claim.issuer.user.walletAddress,
       },
-    ];
+    ]);
 
     const { bytes, txnIds } = await signTransactions(group);
     await algodClient.sendRawTransaction(bytes).do();

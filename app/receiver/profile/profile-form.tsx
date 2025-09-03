@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -42,6 +42,7 @@ export default function ProfileForm({
     control,
     handleSubmit,
     formState: { errors, isDirty },
+    setValue,
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -49,6 +50,13 @@ export default function ProfileForm({
       organizationName: profileData?.organizationName || "",
     },
   });
+
+  useEffect(() => {
+    if (profileData) {
+      setValue("fullName", profileData.fullName);
+      setValue("organizationName", profileData.organizationName);
+    }
+  }, [profileData]);
 
   const onSubmit = (data: ProfileFormValues) => {
     startTransition(async () => {

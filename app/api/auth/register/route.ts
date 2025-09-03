@@ -5,7 +5,6 @@ import { sendVerificationEmail } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
 import { getWallet } from "@/lib/vault";
 import { getHash, cleanString } from "@/lib/utils";
-import { ensureOnboardingFund } from "@/lib/blockchain";
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,8 +64,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    await ensureOnboardingFund(walletAddress, 0.05);
 
     const user = await prisma.user.create({
       data: {

@@ -10,6 +10,7 @@ import {
 } from "@/lib/const";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
+import { ensureOnboardingFund } from "@/lib/blockchain";
 
 export async function GET(
   req: NextRequest,
@@ -133,47 +134,53 @@ export async function POST(
 
     let txnId = "";
     if (action === "accept") {
+      const onboardingFund = await ensureOnboardingFund(user.walletAddress);
       const suggestedParams = await algodClient.getTransactionParams().do();
       suggestedParams.flatFee = true;
       suggestedParams.fee = BigInt(3000);
       const feeDelegationParams = await algodClient.getTransactionParams().do();
       feeDelegationParams.flatFee = true;
       feeDelegationParams.fee = BigInt(0);
-
-      const group = [
-        {
-          txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-            sender: OPERATIONAL_WALLET,
-            receiver: user.walletAddress,
-            amount: algosdk.algosToMicroalgos(0.1),
-            suggestedParams,
-          }),
-          signerEmail: "operational",
-          signerAddress: OPERATIONAL_WALLET,
-        },
-        {
-          txn: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-            sender: user.walletAddress,
-            receiver: user.walletAddress,
-            amount: 0,
-            assetIndex: Number(issuedBadge.badge.assetId),
-            suggestedParams: feeDelegationParams,
-          }),
-          signerEmail: user.email,
-          signerAddress: user.walletAddress,
-        },
-        {
-          txn: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-            sender: issuedBadge.issuer.user.walletAddress,
-            receiver: user.walletAddress,
-            amount: 1,
-            assetIndex: Number(issuedBadge.badge.assetId),
-            suggestedParams: feeDelegationParams,
-          }),
-          signerEmail: issuedBadge.issuer.user.email,
-          signerAddress: issuedBadge.issuer.user.walletAddress,
-        },
-      ];
+      const group = [];
+      if (onboardingFund) {
+        group.push(onboardingFund);
+      }
+      group.push(
+        ...[
+          {
+            txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+              sender: OPERATIONAL_WALLET,
+              receiver: user.walletAddress,
+              amount: algosdk.algosToMicroalgos(0.1),
+              suggestedParams,
+            }),
+            signerEmail: "operational",
+            signerAddress: OPERATIONAL_WALLET,
+          },
+          {
+            txn: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+              sender: user.walletAddress,
+              receiver: user.walletAddress,
+              amount: 0,
+              assetIndex: Number(issuedBadge.badge.assetId),
+              suggestedParams: feeDelegationParams,
+            }),
+            signerEmail: user.email,
+            signerAddress: user.walletAddress,
+          },
+          {
+            txn: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+              sender: issuedBadge.issuer.user.walletAddress,
+              receiver: user.walletAddress,
+              amount: 1,
+              assetIndex: Number(issuedBadge.badge.assetId),
+              suggestedParams: feeDelegationParams,
+            }),
+            signerEmail: issuedBadge.issuer.user.email,
+            signerAddress: issuedBadge.issuer.user.walletAddress,
+          },
+        ]
+      );
 
       const { bytes, txnIds } = await signTransactions(group);
       await algodClient.sendRawTransaction(bytes).do();

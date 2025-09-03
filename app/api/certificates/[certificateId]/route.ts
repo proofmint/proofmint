@@ -10,6 +10,7 @@ import {
 import prisma from "@/lib/prisma";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
+import { ensureOnboardingFund } from "@/lib/blockchain";
 
 export async function POST(
   req: NextRequest,
@@ -86,6 +87,11 @@ export async function POST(
 
     let txnId = "";
     if (action === "accept") {
+      const group = [];
+      const onboardingFund = await ensureOnboardingFund(user.walletAddress);
+      if (onboardingFund) {
+        group.push(onboardingFund);
+      }
       const suggestedParams = await algodClient.getTransactionParams().do();
       suggestedParams.flatFee = true;
       suggestedParams.fee = BigInt(3000);
@@ -93,40 +99,42 @@ export async function POST(
       feeDelegationParams.flatFee = true;
       feeDelegationParams.fee = BigInt(0);
 
-      const group = [
-        {
-          txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-            sender: OPERATIONAL_WALLET,
-            receiver: user.walletAddress,
-            amount: algosdk.algosToMicroalgos(0.1),
-            suggestedParams,
-          }),
-          signerEmail: "operational",
-          signerAddress: OPERATIONAL_WALLET,
-        },
-        {
-          txn: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-            sender: user.walletAddress,
-            receiver: user.walletAddress,
-            amount: 0,
-            assetIndex: Number(issuedCertificate.assetId),
-            suggestedParams: feeDelegationParams,
-          }),
-          signerEmail: user.email,
-          signerAddress: user.walletAddress,
-        },
-        {
-          txn: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-            sender: issuedCertificate.issuer.user.walletAddress,
-            receiver: user.walletAddress,
-            amount: 1,
-            assetIndex: Number(issuedCertificate.assetId),
-            suggestedParams: feeDelegationParams,
-          }),
-          signerEmail: issuedCertificate.issuer.user.email,
-          signerAddress: issuedCertificate.issuer.user.walletAddress,
-        },
-      ];
+      group.push(
+        ...[
+          {
+            txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+              sender: OPERATIONAL_WALLET,
+              receiver: user.walletAddress,
+              amount: algosdk.algosToMicroalgos(0.1),
+              suggestedParams,
+            }),
+            signerEmail: "operational",
+            signerAddress: OPERATIONAL_WALLET,
+          },
+          {
+            txn: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+              sender: user.walletAddress,
+              receiver: user.walletAddress,
+              amount: 0,
+              assetIndex: Number(issuedCertificate.assetId),
+              suggestedParams: feeDelegationParams,
+            }),
+            signerEmail: user.email,
+            signerAddress: user.walletAddress,
+          },
+          {
+            txn: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+              sender: issuedCertificate.issuer.user.walletAddress,
+              receiver: user.walletAddress,
+              amount: 1,
+              assetIndex: Number(issuedCertificate.assetId),
+              suggestedParams: feeDelegationParams,
+            }),
+            signerEmail: issuedCertificate.issuer.user.email,
+            signerAddress: issuedCertificate.issuer.user.walletAddress,
+          },
+        ]
+      );
 
       const { bytes, txnIds } = await signTransactions(group);
       await algodClient.sendRawTransaction(bytes).do();

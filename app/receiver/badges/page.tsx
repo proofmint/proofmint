@@ -41,7 +41,7 @@ export default function BadgesPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [badges, setBadges] = useState<Badge[]>([]);
-  const [loadingIds, setLoadingIds] = useState<string[]>([]);
+  const [loadingById, setLoadingById] = useState<Record<string, "accept" | "reject">>({});
 
   const filteredBadges = badges.filter((item) => {
     const matchesSearch =
@@ -59,7 +59,7 @@ export default function BadgesPage() {
   });
 
   const handleBadgeAction = async (id: string, action: "accept" | "reject") => {
-    setLoadingIds((prev) => [...prev, id]);
+    setLoadingById((prev) => ({ ...prev, [id]: action }));
     try {
       const res = await fetch(`/api/badges/${id}`, {
         method: "POST",
@@ -86,7 +86,10 @@ export default function BadgesPage() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoadingIds((prev) => prev.filter((b) => b !== id));
+      setLoadingById((prev) => {
+        const { [id]: _omit, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -260,10 +263,10 @@ export default function BadgesPage() {
                       <Button
                         size="sm"
                         className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white"
-                        disabled={loadingIds.includes(badge.id)}
+                        disabled={Boolean(loadingById[badge.id])}
                         onClick={() => handleBadgeAction(badge.id, "accept")}
                       >
-                        {loadingIds.includes(badge.id) ? (
+                        {loadingById[badge.id] === "accept" ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin mr-1" />{" "}
                             Claiming...
@@ -275,10 +278,10 @@ export default function BadgesPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={loadingIds.includes(badge.id)}
+                        disabled={Boolean(loadingById[badge.id])}
                         onClick={() => handleBadgeAction(badge.id, "reject")}
                       >
-                        {loadingIds.includes(badge.id) ? (
+                        {loadingById[badge.id] === "reject" ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin mr-1" />{" "}
                             Rejecting...
