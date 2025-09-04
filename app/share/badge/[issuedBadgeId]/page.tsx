@@ -77,6 +77,8 @@ export default async function PublicBadgePage({
     include: { badge: true, issuer: { include: { user: true } } },
   });
 
+  console.log(data);
+
   // Try to find receiver user information if they exist in the system
   const receiver = data ? await prisma.user.findUnique({
     where: { email: data.receiverEmail },
@@ -176,16 +178,20 @@ export default async function PublicBadgePage({
               data.badge.customProperties.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="text-base font-semibold">Badge Details</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {(data.badge.customProperties as Array<{key: string, value: string}>).map((property, index) => (
                       <div
                         key={index}
-                        className="rounded-lg border bg-gray-50 px-3 py-2 text-sm flex items-center justify-between"
+                        className="rounded-lg border bg-gray-50 px-4 py-3 text-sm"
                       >
-                        <span className="text-gray-600">{property.key}</span>
-                        <span className="font-medium text-gray-900">
-                          {property.value}
-                        </span>
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-gray-600 font-medium text-xs uppercase tracking-wide">
+                            {property.key}
+                          </span>
+                          <span className="font-medium text-gray-900 break-words leading-relaxed">
+                            {property.value}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
