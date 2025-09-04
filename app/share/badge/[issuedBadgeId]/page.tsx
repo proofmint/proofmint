@@ -1,11 +1,16 @@
 import prisma from "@/lib/prisma";
-import { APPLICATION_HOST } from "@/lib/const";
+import { APPLICATION_HOST, ALGORAND_NETWORK } from "@/lib/const";
 import type { Metadata } from "next";
 
 function toAbsolute(url?: string | null): string | undefined {
   if (!url) return undefined;
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   return `${APPLICATION_HOST}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
+function getTransactionExplorerUrl(txHash: string): string {
+  const network = ALGORAND_NETWORK.toLowerCase();
+  return `https://lora.algokit.io/${network}/transaction/${txHash}`;
 }
 
 export async function generateMetadata({
@@ -138,22 +143,42 @@ export default async function PublicBadgePage({
                 <p className="text-gray-700 leading-relaxed">{description}</p>
               </div>
             )}
+            {data.transactionHash && (
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">Blockchain Transaction</h3>
+                <a
+                  href={getTransactionExplorerUrl(data.transactionHash)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="h-4 w-4"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                  </svg>
+                  View on Explorer
+                </a>
+              </div>
+            )}
             {data.badge.customProperties &&
-              Object.keys((data.badge.customProperties as any) || {}).length >
-                0 && (
+              Array.isArray(data.badge.customProperties) &&
+              data.badge.customProperties.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="text-base font-semibold">Badge Details</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {Object.entries(
-                      (data.badge.customProperties as any) || {}
-                    ).map(([k, v]) => (
+                    {(data.badge.customProperties as Array<{key: string, value: string}>).map((property, index) => (
                       <div
-                        key={k}
+                        key={index}
                         className="rounded-lg border bg-gray-50 px-3 py-2 text-sm flex items-center justify-between"
                       >
-                        <span className="text-gray-600">{k}</span>
+                        <span className="text-gray-600">{property.key}</span>
                         <span className="font-medium text-gray-900">
-                          {String(v)}
+                          {property.value}
                         </span>
                       </div>
                     ))}
