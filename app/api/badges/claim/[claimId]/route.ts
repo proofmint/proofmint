@@ -178,7 +178,7 @@ export async function POST(
     const { bytes, txnIds } = await signTransactions(group);
     await algodClient.sendRawTransaction(bytes).do();
     await algosdk.waitForConfirmation(algodClient, txnIds[0], 3);
-    const txnId = txnIds[2];
+    const txnId = txnIds[txnIds.length - 1];
 
     await prisma.$transaction([
       prisma.issuedBadge.create({

@@ -139,7 +139,7 @@ export async function POST(
       const { bytes, txnIds } = await signTransactions(group);
       await algodClient.sendRawTransaction(bytes).do();
       await algosdk.waitForConfirmation(algodClient, txnIds[0], 3);
-      txnId = txnIds[2];
+      txnId = txnIds[txnIds.length - 1];
     }
 
     // Update the badge status
