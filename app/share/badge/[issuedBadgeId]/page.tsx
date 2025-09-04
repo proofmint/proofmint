@@ -77,6 +77,12 @@ export default async function PublicBadgePage({
     include: { badge: true, issuer: { include: { user: true } } },
   });
 
+  // Try to find receiver user information if they exist in the system
+  const receiver = data ? await prisma.user.findUnique({
+    where: { email: data.receiverEmail },
+    select: { fullName: true, organizationName: true },
+  }) : null;
+
   if (!data) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -185,7 +191,7 @@ export default async function PublicBadgePage({
                   </div>
                 </div>
               )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div className="rounded-lg border p-3 bg-white">
                 <span className="text-gray-500">Issued</span>
                 <div className="font-medium">
@@ -204,6 +210,12 @@ export default async function PublicBadgePage({
                 <span className="text-gray-500">Issuer</span>
                 <div className="font-medium">
                   {data.issuer.user.organizationName}
+                </div>
+              </div>
+              <div className="rounded-lg border p-3 bg-white">
+                <span className="text-gray-500">Receiver</span>
+                <div className="font-medium">
+                  {receiver?.fullName || data.receiverEmail}
                 </div>
               </div>
             </div>
