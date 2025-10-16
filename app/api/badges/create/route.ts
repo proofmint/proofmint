@@ -174,6 +174,7 @@ export async function POST(req: NextRequest) {
       name: badgeName,
       unit_name: unitName,
       creator: issuer.user.walletAddress,
+      description,
       image: `ipfs://${pinataResult.IpfsHash}#arc3`,
       image_integrity: `sha256-${imageHash}`,
       image_mimetype: mimeType,

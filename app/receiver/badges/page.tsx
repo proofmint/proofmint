@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Award, Search, ExternalLink, Calendar, Loader2 } from "lucide-react";
+import { Award, Search, ExternalLink, Calendar, Loader2, Copy } from "lucide-react";
 import { Share2 } from "lucide-react";
 
 type Badge = {
@@ -42,6 +42,7 @@ export default function BadgesPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loadingById, setLoadingById] = useState<Record<string, "accept" | "reject">>({});
+  const [copiedBadgeId, setCopiedBadgeId] = useState<string | null>(null);
 
   const filteredBadges = badges.filter((item) => {
     const matchesSearch =
@@ -90,6 +91,17 @@ export default function BadgesPage() {
         const { [id]: _omit, ...rest } = prev;
         return rest;
       });
+    }
+  };
+
+  const handleCopyLink = async (badgeId: string, badgeTitle: string) => {
+    const shareUrl = `${window.location.origin}/share/badge/${badgeId}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedBadgeId(badgeId);
+      setTimeout(() => setCopiedBadgeId(null), 2000); // Reset after 2 seconds
+    } catch (err) {
+      console.error("Failed to copy link:", err);
     }
   };
 
@@ -306,6 +318,17 @@ export default function BadgesPage() {
                       >
                         <ExternalLink className="h-4 w-4 mr-1" /> Verify
                       </a>
+                    </Button>
+                  )}
+                  {badge.status === "CLAIMED" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-transparent"
+                      onClick={() => handleCopyLink(badge.id, badge.title)}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      {copiedBadgeId === badge.id ? "Copied!" : "Copy Link"}
                     </Button>
                   )}
                   {badge.status === "CLAIMED" && (
