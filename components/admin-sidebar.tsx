@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -13,12 +13,22 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, TicketPercent, CreditCard, LogOut, User, Settings } from "lucide-react"
-import { useSession } from "@/contexts/SessionContext"
-import Image from "next/image"
-import Logo from "@/public/images/Logo.png"
+} from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import {
+  LayoutDashboard,
+  Users,
+  TicketPercent,
+  CreditCard,
+  LogOut,
+  User,
+  Settings,
+  ArrowUpDown,
+  DollarSign,
+} from "lucide-react";
+import { useSession } from "@/contexts/SessionContext";
+import Image from "next/image";
+import Logo from "@/public/images/Logo.png";
 
 const menuItems = [
   {
@@ -32,31 +42,41 @@ const menuItems = [
     icon: Users,
   },
   {
-    title: "Coupons",
-    url: "/admin/coupons",
-    icon: TicketPercent,
-  },
-  {
     title: "Credit Requests",
     url: "/admin/credit-requests",
     icon: CreditCard,
+  },
+  {
+    title: "Credit Management",
+    url: "/admin/credit-management",
+    icon: DollarSign,
+  },
+  {
+    title: "On‑Ramp",
+    url: "/admin/onramp",
+    icon: ArrowUpDown,
+  },
+  {
+    title: "Coupons",
+    url: "/admin/coupons",
+    icon: TicketPercent,
   },
   {
     title: "Settings",
     url: "/admin/settings",
     icon: Settings,
   },
-]
+];
 
 export function AdminSidebar() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const { logout, user } = useSession()
+  const pathname = usePathname();
+  const router = useRouter();
+  const { logout, user } = useSession();
 
   const handleLogout = () => {
-    logout()
-    router.push("/")
-  }
+    logout();
+    router.push("/");
+  };
 
   return (
     <Sidebar>
@@ -107,7 +127,5 @@ export function AdminSidebar() {
         </div>
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }
-
-
