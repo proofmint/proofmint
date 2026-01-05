@@ -470,7 +470,7 @@ const getAssetClaimedDetails = async (
             transactionDetails.push({
               receiverAddress: txn.assetTransferTransaction.receiver,
               txnId: txn.id,
-              claimedAt: new Date(txn.roundTime),
+              claimedAt: new Date(txn.roundTime * 1000),
             });
           }
         }
