@@ -30,20 +30,30 @@ export async function GET(req: NextRequest) {
     }
 
     const [
-      badges,
+      totalEmailBasedBadges,
+      totalMagicLinkBadges,
       claimedBadges,
       certificates,
       claimedCertificates,
       distinctBadgeRecipients,
       distinctCertificateRecipients,
     ] = await Promise.all([
-      // Get total count of all issued badges
+      // Get total count of email based issued badges
       prisma.issuedBadge.count({
+        where: { issuerId: user.issuerProfile.id, claimLinkId: null },
+      }),
+
+      // Get total count of magic link type badges (via claim links)
+      prisma.badgeClaimLink.aggregate({
         where: { issuerId: user.issuerProfile.id },
+        _sum: { limit: true },
       }),
       // Get total count of claimed badges
       prisma.issuedBadge.count({
-        where: { issuerId: user.issuerProfile.id, status: "CLAIMED" },
+        where: {
+          issuerId: user.issuerProfile.id,
+          status: "CLAIMED",
+        },
       }),
       // Get total count of all issued certificates
       prisma.issuedCertificate.count({
@@ -53,33 +63,33 @@ export async function GET(req: NextRequest) {
       prisma.issuedCertificate.count({
         where: { issuerId: user.issuerProfile.id, status: "CLAIMED" },
       }),
-      // Get distinct recipient emails for badges
-      prisma.issuedBadge.findMany({
+      // Get count of distinct recipient emails for badges
+      prisma.issuedBadge.groupBy({
+        by: ["receiverEmail"],
         where: { issuerId: user.issuerProfile.id },
-        distinct: ["receiverEmail"],
-        select: {
-          receiverEmail: true,
-        },
+        _count: { receiverEmail: true },
       }),
-      // Get distinct recipient emails for certificates
-      prisma.issuedCertificate.findMany({
+      // Get count of distinct recipient emails for certificates
+      prisma.issuedCertificate.groupBy({
+        by: ["receiverEmail"],
         where: { issuerId: user.issuerProfile.id },
-        distinct: ["receiverEmail"],
-        select: {
-          receiverEmail: true,
-        },
+        _count: { receiverEmail: true },
       }),
     ]);
 
-    // Calculate the total number of unique recipients
-    const recipientEmails = new Set([
-      ...distinctBadgeRecipients.map((b) => b.receiverEmail),
-      ...distinctCertificateRecipients.map((c) => c.receiverEmail),
-    ]);
-    const totalRecipients = recipientEmails.size;
+    // Calculate the total number of unique recipients (deduplicated across badges and certificates)
+    const badgeRecipientEmails = distinctBadgeRecipients.map((b) => b.receiverEmail);
+    const certificateRecipientEmails = distinctCertificateRecipients.map(
+      (c) => c.receiverEmail
+    );
+    const totalRecipients = new Set([
+      ...badgeRecipientEmails,
+      ...certificateRecipientEmails,
+    ]).size;
 
     // Calculate final metrics
-    const totalBadgesIssued = badges;
+    const totalBadgesIssued =
+      (totalMagicLinkBadges._sum.limit || 0) + (totalEmailBasedBadges || 0);
     const totalCertificatesIssued = certificates;
     const totalIssued = totalBadgesIssued + totalCertificatesIssued;
     const totalClaimed = claimedBadges + claimedCertificates;
@@ -96,8 +106,11 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("API error:", error);
     // Handle potential JWT errors (e.g., expired token)
-    if (error instanceof Error && error.name === 'JWTExpired') {
-        return NextResponse.json({ error: "Unauthorized: Token expired" }, { status: 401 });
+    if (error instanceof Error && error.name === "JWTExpired") {
+      return NextResponse.json(
+        { error: "Unauthorized: Token expired" },
+        { status: 401 }
+      );
     }
     return NextResponse.json(
       { error: "Internal server error" },
