@@ -346,7 +346,7 @@ const core_team_badge = {
     assetId: "3196189474",
     description:
       "This is issued to all the core team of TEDxSIU Hyderabad season 1",
-    imageUrl: `https://ipfs.io/ipfs/QmUE4UvCBkh9uvrLFeCK4hEMgYewsyWEAwyjJPmGuBLoEC`,
+    imageUrl: `https://ipfs.io/ipfs/QmWwmceTCJp7zufVCscPwc8D8ork47A6p1sM3Mo57mi3z5`,
     unitName: "TEDxSIUH",
     badgeType: "achievement",
     customProperties: [
