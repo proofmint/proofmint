@@ -201,7 +201,7 @@ export default async function PublicBadgePage({
               <div className="rounded-lg border p-3 bg-white">
                 <span className="text-gray-500">Issued</span>
                 <div className="font-medium">
-                  {new Date(data.issuedAt).toLocaleDateString()}
+                  {new Date(data.badge.createdAt).toLocaleDateString()}
                 </div>
               </div>
               <div className="rounded-lg border p-3 bg-white">
