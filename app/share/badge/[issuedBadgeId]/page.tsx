@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { APPLICATION_HOST, ALGORAND_NETWORK } from "@/lib/const";
 import type { Metadata } from "next";
+import Image from "next/image";
 
 function toAbsolute(url?: string | null): string | undefined {
   if (!url) return undefined;
@@ -47,12 +48,12 @@ export async function generateMetadata({
       siteName: "ProofMint",
       images: imageUrl
         ? [
-            {
-              url: imageUrl,
-              width: 1200,
-              height: 630,
-            },
-          ]
+          {
+            url: imageUrl,
+            width: 1200,
+            height: 630,
+          },
+        ]
         : undefined,
       locale: "en_US",
       type: "website",
@@ -117,10 +118,12 @@ export default async function PublicBadgePage({
         <div className="relative overflow-hidden rounded-2xl border bg-white shadow-sm">
           <div className="bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 p-8 flex flex-col md:flex-row items-center gap-6">
             <div className="w-28 h-28 md:w-36 md:h-36 rounded-xl bg-white/70 backdrop-blur border shadow-sm overflow-hidden flex items-center justify-center">
-              <img
+              <Image
                 src={imageUrl}
                 alt={title}
-                className="object-contain w-full h-full"
+                layout="fill"
+                objectFit="contain"
+                className="rounded-md"
               />
             </div>
             <div className="text-center md:text-left">
@@ -167,7 +170,7 @@ export default async function PublicBadgePage({
                     stroke="currentColor"
                     strokeWidth="2"
                   >
-                    <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                   View on Explorer
                 </a>
@@ -179,7 +182,7 @@ export default async function PublicBadgePage({
                 <div className="space-y-3">
                   <h3 className="text-base font-semibold">Badge Details</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {(data.badge.customProperties as Array<{key: string, value: string}>).map((property, index) => (
+                    {(data.badge.customProperties as Array<{ key: string, value: string }>).map((property, index) => (
                       <div
                         key={index}
                         className="rounded-lg border bg-gray-50 px-4 py-3 text-sm"
