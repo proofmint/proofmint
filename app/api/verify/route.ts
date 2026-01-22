@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isValidEmail } from "@/lib/validators";
 
+const ALLOWED_ORIGINS = [
+  "https://algorand.edubuktrucv.com",
+  "https://www.algorand.edubuktrucv.com",
+];
+
+function corsHeaders(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin || "") ? origin : ALLOWED_ORIGINS[0];
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin || ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+}
+
 interface VerificationRequest {
   name: string;
   issueDate: string;
@@ -16,6 +32,13 @@ interface VerificationResponse {
   type: "badge" | "certificate";
 }
 
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders(req),
+  });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -27,14 +50,14 @@ export async function GET(req: NextRequest) {
     if (!name || !issueDate || !userEmail) {
       return NextResponse.json(
         { error: "Missing required parameters: name, issueDate, userEmail" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders(req) }
       );
     }
 
     if (!isValidEmail(userEmail)) {
       return NextResponse.json(
         { error: "Invalid email format" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders(req) }
       );
     }
 
@@ -43,7 +66,7 @@ export async function GET(req: NextRequest) {
     if (isNaN(parsedIssueDate.getTime())) {
       return NextResponse.json(
         { error: "Invalid issue date format" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders(req) }
       );
     }
 
@@ -78,7 +101,7 @@ export async function GET(req: NextRequest) {
         type: "badge",
       };
 
-      return NextResponse.json(response);
+      return NextResponse.json(response, { headers: corsHeaders(req) });
     }
 
     // Search for matching certificate
@@ -112,19 +135,19 @@ export async function GET(req: NextRequest) {
         type: "certificate",
       };
 
-      return NextResponse.json(response);
+      return NextResponse.json(response, { headers: corsHeaders(req) });
     }
 
     // No matching credential found
     return NextResponse.json(
       { error: "No matching credential found" },
-      { status: 404 }
+      { status: 404, headers: corsHeaders(req) }
     );
   } catch (error) {
     console.error("Verification failed:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders(req) }
     );
   }
 }
@@ -138,14 +161,14 @@ export async function POST(req: NextRequest) {
     if (!name || !issueDate || !userEmail) {
       return NextResponse.json(
         { error: "Missing required fields: name, issueDate, userEmail" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders(req) }
       );
     }
 
     if (!isValidEmail(userEmail)) {
       return NextResponse.json(
         { error: "Invalid email format" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders(req) }
       );
     }
 
@@ -154,7 +177,7 @@ export async function POST(req: NextRequest) {
     if (isNaN(parsedIssueDate.getTime())) {
       return NextResponse.json(
         { error: "Invalid issue date format" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders(req) }
       );
     }
 
@@ -189,7 +212,7 @@ export async function POST(req: NextRequest) {
         type: "badge",
       };
 
-      return NextResponse.json(response);
+      return NextResponse.json(response, { headers: corsHeaders(req) });
     }
 
     // Search for matching certificate
@@ -223,19 +246,19 @@ export async function POST(req: NextRequest) {
         type: "certificate",
       };
 
-      return NextResponse.json(response);
+      return NextResponse.json(response, { headers: corsHeaders(req) });
     }
 
     // No matching credential found
     return NextResponse.json(
       { error: "No matching credential found" },
-      { status: 404 }
+      { status: 404, headers: corsHeaders(req) }
     );
   } catch (error) {
     console.error("Verification failed:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders(req) }
     );
   }
 }
