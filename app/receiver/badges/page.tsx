@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Award, Search, ExternalLink, Calendar, Loader2, Copy } from "lucide-react";
 import { Share2 } from "lucide-react";
+import Image from "next/image";
 
 type Badge = {
   id: string;
@@ -201,8 +202,8 @@ export default function BadgesPage() {
           >
             <div className="px-6 pt-6 pb-4">
               <div className="w-[100px] h-[100px] mx-auto mb-4 rounded-lg overflow-hidden border border-gray-200">
-                <img
-                  src={badge.image || "/placeholder.svg"}
+                <Image
+                  src={badge.image || "/placeholder.png"}
                   alt={badge.title}
                   className="object-contain w-full h-full"
                 />
