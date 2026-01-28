@@ -1,0 +1,282 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String      @id @default(cuid())
+  email            String      @unique
+  fullName         String
+  organizationName String
+  passwordHash     String?
+  role             Role
+  walletAddress    String
+  emailVerified    Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  authTokens       AuthToken[]
+  issuerProfile    Issuer?
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  token     String
+  type      AuthTokenType
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "AuthToken_userId_fkey")
+}
+
+model Issuer {
+  id                     String                  @id @default(cuid())
+  userId                 String                  @unique
+  websiteUrl             String?
+  status                 IssuerStatus            @default(PENDING)
+  creditBalance          Int                     @default(0)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  createdBadges          Badge[]
+  createdClaimLinks      BadgeClaimLink[]
+  bulkIssuanceJobs       BulkIssuanceJob[]
+  createdTemplates       CertificateTemplate[]
+  coupons                Coupon[]
+  couponUsages           CouponUsage[]
+  creditPurchaseRequests CreditPurchaseRequest[]
+  creditTransactions     CreditTransaction[]
+  issuedBadges           IssuedBadge[]           @relation("IssuerBadges")
+  issuedCertificates     IssuedCertificate[]     @relation("IssuerCertificates")
+  user                   User                    @relation(fields: [userId], references: [id])
+}
+
+model Badge {
+  id               String          @id @default(cuid())
+  assetId          String
+  issuerId         String
+  name             String
+  description      String?
+  imageUrl         String
+  unitName         String?
+  badgeType        String?
+  customProperties Json?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  issuer           Issuer          @relation(fields: [issuerId], references: [id])
+  claimLink        BadgeClaimLink?
+  issuedInstances  IssuedBadge[]
+
+  @@index([issuerId], map: "Badge_issuerId_fkey")
+}
+
+model BadgeClaimLink {
+  id           String        @id @default(cuid())
+  badgeId      String        @unique
+  issuerId     String
+  limit        Int
+  claimCount   Int           @default(0)
+  isActive     Boolean       @default(true)
+  expiresAt    DateTime?
+  createdAt    DateTime      @default(now())
+  badge        Badge         @relation(fields: [badgeId], references: [id])
+  issuer       Issuer        @relation(fields: [issuerId], references: [id])
+  issuedBadges IssuedBadge[]
+
+  @@index([issuerId], map: "BadgeClaimLink_issuerId_fkey")
+}
+
+model IssuedBadge {
+  id              String           @id @default(cuid())
+  badgeId         String
+  receiverEmail   String
+  issuerId        String
+  claimLinkId     String?
+  status          CredentialStatus @default(PENDING)
+  issuedAt        DateTime         @default(now())
+  claimedAt       DateTime?
+  transactionHash String?
+  badge           Badge            @relation(fields: [badgeId], references: [id])
+  claimLink       BadgeClaimLink?  @relation(fields: [claimLinkId], references: [id])
+  issuer          Issuer           @relation("IssuerBadges", fields: [issuerId], references: [id])
+
+  @@index([badgeId], map: "IssuedBadge_badgeId_fkey")
+  @@index([claimLinkId], map: "IssuedBadge_claimLinkId_fkey")
+  @@index([issuerId], map: "IssuedBadge_issuerId_fkey")
+}
+
+model CertificateTemplate {
+  id                  String              @id @default(cuid())
+  issuerId            String
+  templateName        String
+  templateDescription String
+  backgroundImageUrl  String
+  dynamicFields       Json
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  bulkIssuanceJobs    BulkIssuanceJob[]
+  issuer              Issuer              @relation(fields: [issuerId], references: [id])
+  issuedInstances     IssuedCertificate[]
+
+  @@index([issuerId], map: "CertificateTemplate_issuerId_fkey")
+}
+
+model IssuedCertificate {
+  id                String              @id @default(cuid())
+  assetId           String
+  templateId        String
+  receiverEmail     String
+  issuerId          String
+  jobId             String?
+  fieldData         Json
+  generatedImageUrl String
+  status            CredentialStatus    @default(PENDING)
+  issuedAt          DateTime            @default(now())
+  claimedAt         DateTime?
+  transactionHash   String?
+  issuer            Issuer              @relation("IssuerCertificates", fields: [issuerId], references: [id])
+  job               BulkIssuanceJob?    @relation(fields: [jobId], references: [id])
+  template          CertificateTemplate @relation(fields: [templateId], references: [id])
+
+  @@index([issuerId], map: "IssuedCertificate_issuerId_fkey")
+  @@index([jobId], map: "IssuedCertificate_jobId_fkey")
+  @@index([templateId], map: "IssuedCertificate_templateId_fkey")
+}
+
+model BulkIssuanceJob {
+  id                    String              @id @default(cuid())
+  issuerId              String
+  certificateTemplateId String
+  recipientData         Json
+  status                JobStatus           @default(PENDING)
+  totalItems            Int
+  processedItems        Int                 @default(0)
+  failedItems           Int                 @default(0)
+  statusMessages        Json?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  template              CertificateTemplate @relation(fields: [certificateTemplateId], references: [id])
+  issuer                Issuer              @relation(fields: [issuerId], references: [id])
+  issuedCertificates    IssuedCertificate[]
+
+  @@index([certificateTemplateId], map: "BulkIssuanceJob_certificateTemplateId_fkey")
+  @@index([issuerId], map: "BulkIssuanceJob_issuerId_fkey")
+}
+
+model CreditPurchaseRequest {
+  id                 String        @id @default(cuid())
+  issuerId           String
+  creditsRequested   Int
+  amountPaid         Decimal
+  paymentProofBase64 String        @db.LongText
+  referenceNumber    String
+  status             RequestStatus @default(PENDING)
+  adminNotes         String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  couponUsed         CouponUsage?
+  issuer             Issuer        @relation(fields: [issuerId], references: [id])
+
+  @@index([issuerId], map: "CreditPurchaseRequest_issuerId_fkey")
+}
+
+model CreditTransaction {
+  id        String          @id @default(cuid())
+  issuerId  String
+  type      TransactionType
+  amount    Int
+  createdAt DateTime        @default(now())
+  issuer    Issuer          @relation(fields: [issuerId], references: [id])
+
+  @@index([issuerId], map: "CreditTransaction_issuerId_fkey")
+}
+
+model Coupon {
+  id                String        @id @default(cuid())
+  code              String        @unique
+  discountType      DiscountType
+  discountValue     Decimal
+  minPurchaseAmount Decimal?
+  maxUses           Int?
+  uses              Int           @default(0)
+  issuerId          String?
+  expiresAt         DateTime?
+  isActive          Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  issuer            Issuer?       @relation(fields: [issuerId], references: [id])
+  usages            CouponUsage[]
+
+  @@index([issuerId], map: "Coupon_issuerId_fkey")
+}
+
+model CouponUsage {
+  id                String                @id @default(cuid())
+  couponId          String
+  purchaseRequestId String                @unique
+  issuerId          String
+  usedAt            DateTime              @default(now())
+  coupon            Coupon                @relation(fields: [couponId], references: [id])
+  issuer            Issuer                @relation(fields: [issuerId], references: [id])
+  purchaseRequest   CreditPurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+
+  @@index([couponId], map: "CouponUsage_couponId_fkey")
+  @@index([issuerId], map: "CouponUsage_issuerId_fkey")
+}
+
+model CreditPrice {
+  id          String  @id @default("singleton")
+  value       Decimal
+  upiQrBase64 String? @db.LongText
+}
+
+enum Role {
+  RECEIVER
+  ISSUER
+}
+
+enum IssuerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CredentialStatus {
+  PENDING
+  CLAIMED
+  REJECTED
+}
+
+enum AuthTokenType {
+  MAGIC_LINK
+  OTP
+  EMAIL_VERIFICATION
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TransactionType {
+  PURCHASE
+  MINT_BADGE
+  MINT_CERTIFICATE
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
