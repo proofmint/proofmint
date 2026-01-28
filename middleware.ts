@@ -9,7 +9,8 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const { pathname } = req.nextUrl;
 
-  if(pathname.startsWith("/claim/") || pathname.startsWith("/share/")){
+  // Allow public access to static assets and public paths
+  if(pathname.startsWith("/claim/") || pathname.startsWith("/share/") || pathname.startsWith("/certificates/templates/")) {
     return NextResponse.next();
   }
 

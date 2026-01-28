@@ -29,6 +29,8 @@ interface Template {
   description: string
   backgroundImage: File | null
   fields: DynamicField[]
+  imageWidth: number
+  imageHeight: number
 }
 
 export default function CreateTemplatePage() {
@@ -37,19 +39,57 @@ export default function CreateTemplatePage() {
     description: "",
     backgroundImage: null,
     fields: [],
+    imageWidth: 0,
+    imageHeight: 0,
   })
   const [selectedField, setSelectedField] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [newFieldName, setNewFieldName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
   const canvasRef = useRef<HTMLDivElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
   const { toast } = useToast()
   const router = useRouter()
 
   const params = useParams()
-
   const templateId = params.templateId as string
+
+  // Helper function to calculate rendered image dimensions and offset (accounting for object-contain)
+  const getRenderedImageMetrics = useCallback(() => {
+    if (!imageRef.current) return null
+    
+    const imageRect = imageRef.current.getBoundingClientRect()
+    const imageAspect = template.imageWidth / template.imageHeight
+    const containerAspect = imageRect.width / imageRect.height
+    
+    let renderedWidth, renderedHeight, offsetX, offsetY
+    
+    if (imageAspect > containerAspect) {
+      // Image is wider - will have top/bottom whitespace
+      renderedWidth = imageRect.width
+      renderedHeight = imageRect.width / imageAspect
+      offsetX = 0
+      offsetY = (imageRect.height - renderedHeight) / 2
+    } else {
+      // Image is taller - will have left/right whitespace
+      renderedHeight = imageRect.height
+      renderedWidth = imageRect.height * imageAspect
+      offsetX = (imageRect.width - renderedWidth) / 2
+      offsetY = 0
+    }
+    
+    return {
+      imageRect,
+      renderedWidth,
+      renderedHeight,
+      offsetX,
+      offsetY,
+      scaleX: renderedWidth / template.imageWidth,
+      scaleY: renderedHeight / template.imageHeight,
+    }
+  }, [template.imageWidth, template.imageHeight])
 
   useEffect(() => {
     if (templateId) {
@@ -61,14 +101,34 @@ export default function CreateTemplatePage() {
             throw new Error(`HTTP error! status: ${response.status}`)
           }
           const data = await response.json()
-          const blob = await fetch(data.backgroundImageUrl).then(res => res.blob())
-          const file = new File([blob], "background.png", { type: blob.type })
-          setTemplate({
-            name: data.templateName,
-            description: data.templateDescription,
-            backgroundImage: file,
-            fields: data.dynamicFields || [],
-          })
+          
+          // Load background image
+          const imageUrl = `/certificates/templates/${data.backgroundImageUrl}`
+          const blob = await fetch(imageUrl).then(res => res.blob())
+          const file = new File([blob], data.backgroundImageUrl, { type: blob.type })
+          
+          // Load image to get dimensions
+          const img = new Image()
+          img.onload = () => {
+            // Add unique IDs to fields if they don't have them
+            const fieldsWithIds = (data.dynamicFields || []).map((field: any, index: number) => ({
+              ...field,
+              id: field.id || `field_${Date.now()}_${index}`,
+              placeholder: field.placeholder || `[${field.name}]`,
+              textAlign: field.align || field.textAlign || 'left',
+            }))
+            
+            setTemplate({
+              name: data.templateName,
+              description: data.templateDescription,
+              backgroundImage: file,
+              fields: fieldsWithIds,
+              imageWidth: img.width,
+              imageHeight: img.height,
+            })
+            setImageLoaded(true)
+          }
+          img.src = imageUrl
         } catch (error) {
           console.error("Failed to fetch template:", error)
           toast({
@@ -80,14 +140,24 @@ export default function CreateTemplatePage() {
       }
       fetchTemplate()
     }
-  }, [templateId])
-
-  console.log(template)
+  }, [templateId, toast])
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setTemplate((prev) => ({ ...prev, backgroundImage: file }))
+      // Load image to get dimensions
+      const img = new Image()
+      img.onload = () => {
+        setTemplate((prev) => ({ 
+          ...prev, 
+          backgroundImage: file,
+          imageWidth: img.width,
+          imageHeight: img.height,
+          fields: [] // Reset fields when image changes
+        }))
+        setImageLoaded(true)
+      }
+      img.src = URL.createObjectURL(file)
     }
   }
 
@@ -132,100 +202,150 @@ export default function CreateTemplatePage() {
 
   const handleMouseDown = (e: React.MouseEvent, fieldId: string) => {
     e.preventDefault()
+    e.stopPropagation()
     setSelectedField(fieldId)
     setIsDragging(true)
 
     const field = template.fields.find((f) => f.id === fieldId)
-    if (field) {
-      const rect = canvasRef.current?.getBoundingClientRect()
-      if (rect) {
-        setDragOffset({
-          x: e.clientX - rect.left - field.x,
-          y: e.clientY - rect.top - field.y,
-        })
-      }
-    }
+    if (!field) return
+    
+    const metrics = getRenderedImageMetrics()
+    if (!metrics) return
+    
+    const { imageRect, scaleX, scaleY, offsetX, offsetY } = metrics
+    
+    // Get field element to calculate its dimensions
+    const fieldElement = e.currentTarget as HTMLElement
+    const fieldWidth = fieldElement.offsetWidth
+    const fieldHeight = fieldElement.offsetHeight
+    
+    // Convert original center coordinates to display coordinates
+    const displayCenterX = field.x * scaleX + offsetX
+    const displayCenterY = field.y * scaleY + offsetY
+    
+    // Calculate top-left position for rendering
+    const displayX = displayCenterX - fieldWidth / 2
+    const displayY = displayCenterY - fieldHeight / 4
+    
+    setDragOffset({
+      x: e.clientX - imageRect.left - displayX,
+      y: e.clientY - imageRect.top - displayY,
+    })
   }
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      if (!isDragging || !selectedField || !canvasRef.current) return
+      if (!isDragging || !selectedField) return
 
-      const rect = canvasRef.current.getBoundingClientRect()
-      const newX = Math.max(0, Math.min(rect.width - 100, e.clientX - rect.left - dragOffset.x))
-      const newY = Math.max(0, Math.min(rect.height - 30, e.clientY - rect.top - dragOffset.y))
+      const metrics = getRenderedImageMetrics()
+      if (!metrics) return
+      
+      const { imageRect, offsetX, offsetY, scaleX, scaleY, renderedWidth, renderedHeight } = metrics
+      
+      // Calculate position relative to the actual rendered image (excluding whitespace)
+      const displayX = e.clientX - imageRect.left - offsetX - dragOffset.x
+      const displayY = e.clientY - imageRect.top - offsetY - dragOffset.y
+      
+      // Get field element dimensions to calculate center offset
+      const field = template.fields.find((f) => f.id === selectedField)
+      if (!field) return
+      
+      // Estimate field dimensions in display space
+      const estimatedFieldWidth = 100 * scaleX // Approximate width
+      const estimatedFieldHeight = field.fontSize * scaleY + 8 // Font size + padding
+      
+      // Calculate center position in display space
+      const displayCenterX = displayX + estimatedFieldWidth / 2
+      const displayCenterY = displayY + estimatedFieldHeight / 2
+      
+      // Convert to original image coordinates (center point)
+      const originalCenterX = displayCenterX / scaleX
+      const originalCenterY = displayCenterY / scaleY
+      
+      // Constrain to image bounds (keeping center point within image)
+      const margin = 50 // Minimum margin from edges
+      const constrainedX = Math.max(margin, Math.min(template.imageWidth - margin, originalCenterX))
+      const constrainedY = Math.max(margin, Math.min(template.imageHeight - margin, originalCenterY))
 
-      updateField(selectedField, { x: newX, y: newY })
+      updateField(selectedField, { x: constrainedX, y: constrainedY })
     },
-    [isDragging, selectedField, dragOffset],
+    [isDragging, selectedField, dragOffset, getRenderedImageMetrics, template.imageWidth, template.imageHeight],
   )
 
   const handleMouseUp = () => {
     setIsDragging(false)
-    
   }
 
-  const toBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.readAsDataURL(file)
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = (error) => reject(error)
-  })
-
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    // Deselect field when clicking on canvas background
+    if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === 'IMG') {
+      setSelectedField(null)
+    }
+  }
 
   const handleSaveTemplate = async (e: React.FormEvent) => {
-  e.preventDefault()
+    e.preventDefault()
 
-  if (!template.name || !template.backgroundImage || template.fields.length === 0) {
-    toast({
-      title: "Validation Error",
-      description: "Please provide template name, background image, and at least one dynamic field.",
-      variant: "destructive",
-    })
-    return
-  }
-
-  setIsLoading(true)
-
-  try {
-    const base64Image = await toBase64(template.backgroundImage)
-
-    const payload = {
-      templateName: template.name,
-      templateDescription: template.description,
-      backgroundImageUrl: base64Image,
-      dynamicFields: template.fields,
+    if (!template.name || !template.backgroundImage || template.fields.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide template name, background image, and at least one dynamic field.",
+        variant: "destructive",
+      })
+      return
     }
 
-    const res = await fetch(`/api/templates/${templateId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    })
+    setIsLoading(true)
 
-    if (!res.ok) {
-      throw new Error("Failed to save template")
+    try {
+      // Create FormData for file upload
+      const formData = new FormData()
+      formData.append("templateName", template.name)
+      formData.append("templateDescription", template.description)
+      formData.append("backgroundImage", template.backgroundImage)
+      
+      // Convert fields to match backend format
+      const dynamicFields = template.fields.map(field => ({
+        name: field.name,
+        x: Math.round(field.x),
+        y: Math.round(field.y),
+        fontSize: field.fontSize,
+        fontFamily: "Arial", // Default font family
+        color: field.color,
+        maxWidth: undefined,
+        maxHeight: undefined,
+        align: field.textAlign as 'left' | 'center' | 'right'
+      }))
+      
+      formData.append("dynamicFields", JSON.stringify(dynamicFields))
+
+      const res = await fetch(`/api/templates/${templateId}`, {
+        method: "PUT",
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to save template")
+      }
+
+      toast({
+        title: "Template updated successfully!",
+        description: "Your certificate template has been saved and is ready to use.",
+      })
+      router.push("/issuer/templates")
+    } catch (error: any) {
+      console.error("Error saving template:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Something went wrong while saving the template.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
-
-    toast({
-      title: "Template Updated successfully!",
-      description: "Your certificate template has been saved and is ready to use.",
-    })
-    router.push("/issuer/templates")
-  } catch (error: any) {
-    console.error("Error saving template:", error)
-    toast({
-      title: "Error",
-      description: "Something went wrong while saving the template.",
-      variant: "destructive",
-    })
-  } finally {
-    setIsLoading(false)
   }
-}
 
 
   const selectedFieldData = template.fields.find((f) => f.id === selectedField)
@@ -234,8 +354,8 @@ export default function CreateTemplatePage() {
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Create Certificate Template</h1>
-        <p className="text-gray-600">Design a reusable template with dynamic fields for certificate generation.</p>
+        <h1 className="text-3xl font-bold text-gray-900">Edit Certificate Template</h1>
+        <p className="text-gray-600">Update your certificate template with dynamic fields for certificate generation.</p>
       </div>
 
       <form onSubmit={handleSaveTemplate} className="space-y-6">
@@ -375,9 +495,11 @@ export default function CreateTemplatePage() {
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
+                    onClick={handleCanvasClick}
                   >
                     {/* Background Image */}
                     <img
+                      ref={imageRef}
                       src={URL.createObjectURL(template.backgroundImage) || "/placeholder.svg"}
                       alt="Certificate background"
                       className="absolute inset-0 w-full h-full object-contain"
@@ -385,30 +507,47 @@ export default function CreateTemplatePage() {
                     />
 
                     {/* Dynamic Fields */}
-                    {template.fields.map((field) => (
-                      <div
-                        key={field.id}
-                        className={`absolute cursor-move select-none px-2 py-1 rounded border-2 ${
-                          selectedField === field.id
-                            ? "border-[#9681FA] bg-purple-100"
-                            : "border-transparent hover:border-gray-300 hover:bg-gray-100"
-                        }`}
-                        style={{
-                          left: field.x,
-                          top: field.y,
-                          fontSize: field.fontSize,
-                          color: field.color,
-                          fontWeight: field.fontWeight,
-                          textAlign: field.textAlign as any,
-                        }}
-                        onMouseDown={(e) => handleMouseDown(e, field.id)}
-                      >
-                        {field.placeholder}
-                        {selectedField === field.id && (
-                          <Move className="absolute -top-2 -right-2 h-4 w-4 text-[#9681FA]" />
-                        )}
-                      </div>
-                    ))}
+                    {imageLoaded && template.fields.map((field) => {
+                      const metrics = getRenderedImageMetrics()
+                      if (!metrics) return null
+                      
+                      const { scaleX, scaleY, offsetX, offsetY } = metrics
+                      
+                      // field.x and field.y represent the CENTER point in original image coordinates
+                      const displayCenterX = field.x * scaleX + offsetX
+                      const displayCenterY = field.y * scaleY + offsetY
+                      const displayFontSize = field.fontSize * scaleY
+                      
+                      return (
+                        <div
+                          key={field.id}
+                          className={`absolute select-none ${
+                            selectedField === field.id
+                              ? "border-2 border-[#9681FA] bg-purple-50/50"
+                              : "border-2 border-transparent hover:border-gray-300 hover:bg-gray-100/50"
+                          }`}
+                          style={{
+                            left: displayCenterX,
+                            top: displayCenterY,
+                            transform: 'translate(-50%, -75%)', // Center the element at the coordinates
+                            fontSize: displayFontSize,
+                            color: field.color,
+                            fontWeight: field.fontWeight,
+                            textAlign: field.textAlign as any,
+                            padding: '4px 8px',
+                            cursor: isDragging && selectedField === field.id ? 'grabbing' : 'grab',
+                            pointerEvents: 'auto',
+                            zIndex: selectedField === field.id ? 10 : 1,
+                          }}
+                          onMouseDown={(e) => handleMouseDown(e, field.id)}
+                        >
+                          {field.name}
+                          {selectedField === field.id && (
+                            <Move className="absolute -top-3 -right-3 h-5 w-5 text-[#9681FA] bg-white rounded-full p-0.5 shadow-sm" />
+                          )}
+                        </div>
+                      )
+                    })}
 
                     {template.fields.length === 0 && (
                       <div className="absolute inset-0 flex items-center justify-center">
@@ -483,6 +622,9 @@ export default function CreateTemplatePage() {
                       </select>
                     </div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-4">
+                    Coordinates: X={Math.round(selectedFieldData.x)}, Y={Math.round(selectedFieldData.y)} (in original image pixels: {template.imageWidth}x{template.imageHeight})
+                  </p>
                 </CardContent>
               </Card>
             )}

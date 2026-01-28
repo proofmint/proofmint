@@ -74,8 +74,8 @@ export default function TemplatesPage() {
 
   // Handler for editing a template
   const handleEditTemplate = (templateId: string) => {
-    if(!templateId) return
-   router.push(`/issuer/templates/${templateId}`)
+    if (!templateId) return
+    router.push(`/issuer/templates/${templateId}`)
   }
 
   const handleDeleteTemplate = async (templateId: string) => {
@@ -145,12 +145,18 @@ export default function TemplatesPage() {
           {filteredTemplates.map((template) => (
             <Card key={template.id} className="group hover:shadow-lg transition-shadow">
               <CardHeader className="pb-3">
-                <div className="aspect-video bg-gray-100 rounded-lg mb-3 overflow-hidden">
-                  <img
-                    src={template.backgroundImageUrl || "/placeholder.svg"}
-                    alt={template.templateName}
-                    className="w-full h-full object-cover"
-                  />
+                <div className="aspect-video bg-gray-100 rounded-lg mb-3 overflow-hidden relative">
+                  {template?.backgroundImageUrl ? (
+                    <img
+                      src={`/certificates/templates/${template.backgroundImageUrl}`}
+                      alt={template?.templateName ?? "Certificate template"}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      No image
+                    </div>
+                  )}
                 </div>
                 <CardTitle className="text-lg">{template.templateName}</CardTitle>
                 <CardDescription className="truncate">{template.templateDescription}</CardDescription>
@@ -176,30 +182,34 @@ export default function TemplatesPage() {
 
                 {/* Action Buttons */}
                 <div className="flex space-x-2 pt-2">
-                  <Link href={`/issuer/certificates/create?template=${template.id}`} className="flex-1">
-                  <Button className="w-full" style={{ backgroundColor: "#9681FA" }}>
-                    Use Template
+                  <Link href={`/issuer/certificates/issue?template=${template.id}`} className="flex-1">
+                    <Button className="w-full" style={{ backgroundColor: "#9681FA" }}>
+                      Issue Single
+                    </Button>
+                  </Link>
+                  <Link href={`/issuer/certificates/bulk?template=${template.id}`} className="flex-1">
+                    <Button className="w-full" variant="outline">
+                      Bulk Issue
+                    </Button>
+                  </Link>
+                  <Button variant="outline" size="sm" onClick={() => handleEditTemplate(template.id)}>
+                    <Edit className="h-4 w-4" />
                   </Button>
-                </Link>
-                  <Button variant="outline" size="sm" onClick={() => handleEditTemplate(template.id)}> <Edit className="h-4 w-4" /> </Button>
-                  {/* <Button variant="outline" size="sm"> <Copy className="h-4 w-4" /> </Button> */}
-                  <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleDeleteTemplate(template.id)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => handleDeleteTemplate(template.id)}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-
-                {/* Use Template Button */}
-                {/* <Link href={`/issuer/certificates/create?template=${template.id}`}>
-                  <Button className="w-full" style={{ backgroundColor: "#9681FA" }}>
-                    Use Template
-                  </Button>
-                </Link> */}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
-      
+
       {/* Empty State */}
       {!isLoading && filteredTemplates.length === 0 && (
         <Card>

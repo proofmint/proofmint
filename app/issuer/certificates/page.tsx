@@ -57,12 +57,26 @@ export default function CertificatesPage() {
             Manage and view all your issued certificates.
           </p>
         </div>
-        <Link href="/issuer/certificates/create">
-          <Button style={{ backgroundColor: "#9681FA" }}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create New Certificate
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/issuer/certificates/bulk/jobs">
+            <Button variant="outline">
+              <FileText className="mr-2 h-4 w-4" />
+              View Bulk Jobs
+            </Button>
+          </Link>
+          <Link href="/issuer/certificates/issue">
+            <Button style={{ backgroundColor: "#9681FA" }}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Issue Single Certificate
+            </Button>
+          </Link>
+          <Link href="/issuer/certificates/bulk">
+            <Button variant="outline">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Bulk Issue
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {isLoading ? (
