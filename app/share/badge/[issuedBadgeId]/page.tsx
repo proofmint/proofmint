@@ -2,12 +2,7 @@ import prisma from "@/lib/prisma";
 import { APPLICATION_HOST, ALGORAND_NETWORK } from "@/lib/const";
 import type { Metadata } from "next";
 import Image from "next/image";
-
-function toAbsolute(url?: string | null): string | undefined {
-  if (!url) return undefined;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return `${APPLICATION_HOST}${url.startsWith("/") ? url : `/${url}`}`;
-}
+import { PINATA_GATEWAY } from "@/lib/const";
 
 function getTransactionExplorerUrl(txHash: string): string {
   const network = ALGORAND_NETWORK.toLowerCase();
@@ -35,7 +30,7 @@ export async function generateMetadata({
   const title = data.badge.name;
   const description =
     data.badge.description || `Issued by ${data.issuer.user.organizationName}`;
-  const imageUrl = toAbsolute(data.badge.imageUrl);
+  const imageUrl = `${PINATA_GATEWAY}${data.badge.imageUrl}`;
   const pageUrl = `${APPLICATION_HOST}/share/badge/${data.id}`;
 
   return {
@@ -101,7 +96,7 @@ export default async function PublicBadgePage({
 
   const title = data.badge.name;
   const description = data.badge.description || "";
-  const imageUrl = toAbsolute(data.badge.imageUrl) || "/placeholder.svg";
+  const imageUrl = `${PINATA_GATEWAY}${data.badge.imageUrl}`;
   const pageUrl = `${APPLICATION_HOST}/share/badge/${data.id}`;
 
   const shareText = `I just earned the ${title} badge on ProofMint!`;
