@@ -248,7 +248,7 @@ export async function POST(req: NextRequest) {
           assetId: blockchainResult.assetIndex?.toString() || "",
           issuerId: issuer.id,
           description,
-          imageUrl: `https://ipfs.io/ipfs/${pinataResult.IpfsHash}`,
+          imageUrl: pinataResult.IpfsHash,
           unitName,
           badgeType,
           customProperties: customProperties as any,

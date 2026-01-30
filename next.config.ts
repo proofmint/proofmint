@@ -1,12 +1,18 @@
 import type { NextConfig } from "next";
+import { PINATA_GATEWAY } from "./lib/const";
+
+const extractHostname = (url: string) => {
+  const urlObj = new URL(url);
+  return urlObj.hostname;
+};
 
 const nextConfig: NextConfig = {
   /* config options here */
-  images:{
+  images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "ipfs.io",
+        hostname: extractHostname(PINATA_GATEWAY),
       },
     ],
   },

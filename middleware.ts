@@ -13,8 +13,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const publicPaths = ["/auth/login", "/auth/register", "/auth/verify-email", "/auth/verify-token", "/"];
+  const publicPaths = ["/auth/login", "/auth/register", "/auth/register/issuer", "/auth/verify-email", "/auth/verify-token", "/"];
 
+  console.log(pathname)
   if (publicPaths.includes(pathname)) {
     if (token) {
       try {
