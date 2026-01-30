@@ -7,6 +7,7 @@ import {
   ALGORAND_NETWORK,
   JWT_SECRET,
   OPERATIONAL_WALLET,
+  PINATA_GATEWAY,
 } from "@/lib/const";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
@@ -45,7 +46,7 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ ...badge, distributionType, receiverUsers });
+    return NextResponse.json({ ...badge, imageUrl: `${PINATA_GATEWAY}${badge.imageUrl}`, distributionType, receiverUsers });
   } catch (error) {
     console.error(`Failed to fetch badge ${badgeId}:`, error);
     return NextResponse.json(

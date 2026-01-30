@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
           imageUrl: `${PINATA_GATEWAY}${badge.badge.imageUrl}`,
         },
       }));
-      badges = { badges: issuedBadges, network: ALGORAND_NETWORK };
+      badges = { badges: transformedIssuedBadges, network: ALGORAND_NETWORK };
     }
 
     return NextResponse.json(badges);
