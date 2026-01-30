@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isValidEmail } from "@/lib/validators";
+import { PINATA_GATEWAY } from "@/lib/const";
 
 const ALLOWED_ORIGINS = [
   "https://algorand.edubuktrucv.com",
@@ -96,7 +97,7 @@ export async function GET(req: NextRequest) {
       const response: VerificationResponse = {
         name: issuedBadge.badge.name,
         issuerName: issuedBadge.issuer.user.organizationName,
-        imageUrl: issuedBadge.badge.imageUrl,
+        imageUrl: `${PINATA_GATEWAY}${issuedBadge.badge.imageUrl}`,
         dateOfAchievement: issuedBadge.badge.createdAt.toISOString(),
         type: "badge",
       };
@@ -207,7 +208,7 @@ export async function POST(req: NextRequest) {
       const response: VerificationResponse = {
         name: issuedBadge.badge.name,
         issuerName: issuedBadge.issuer.user.organizationName,
-        imageUrl: issuedBadge.badge.imageUrl,
+        imageUrl: `${PINATA_GATEWAY}${issuedBadge.badge.imageUrl}`,
         dateOfAchievement: issuedBadge.badge.createdAt.toISOString(),
         type: "badge",
       };
