@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -221,7 +222,7 @@ export default function CertificatesPage() {
           >
             <CardHeader className="pb-3">
               <div className="aspect-video bg-gray-100 rounded-lg mb-3 overflow-hidden">
-                <img
+                <Image
                   src={certificate.image || "/placeholder.svg"}
                   alt={certificate.title}
                   className="w-full h-full object-cover"
@@ -425,7 +426,7 @@ export default function CertificatesPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <img
+              <Image
                 src={selectedCertificate.image || "/placeholder.svg"}
                 alt={selectedCertificate.title}
                 className="w-full rounded-lg"

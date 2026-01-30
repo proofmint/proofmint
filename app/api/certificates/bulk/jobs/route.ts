@@ -11,7 +11,10 @@ export async function GET(req: NextRequest) {
   try {
     // Authenticate issuer
     const issuer = await requireIssuer(req);
-    if (!issuer) {
+    if (!issuer || "error" in issuer) {
+      if ("error" in issuer) {
+        return issuer.error;
+      }
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -21,7 +24,7 @@ export async function GET(req: NextRequest) {
     // Fetch all bulk jobs for this issuer
     const jobs = await prisma.bulkIssuanceJob.findMany({
       where: {
-        issuerId: issuer.id,
+        issuerId: issuer.payload.userId,
       },
       include: {
         template: {
