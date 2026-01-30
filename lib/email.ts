@@ -48,3 +48,14 @@ export const sendMagicLinkEmail = async (email: string, token: string) => {
     html: `<p>Click <a href="${magicLink}">here</a> to log in.<br>Valid for 10 minutes.</p>`,
   });
 };
+
+export const sendPasswordResetEmail = async (email: string, token: string) => {
+  const resetLink = `${APPLICATION_HOST}/auth/reset-password?token=${token}`;
+
+  await transporter.sendMail({
+    from: EMAIL_FROM,
+    to: email,
+    subject: "Reset Your Password",
+    html: `<p>Click <a href="${resetLink}">here</a> to reset your password.<br>Valid for 1 hour.</p>`,
+  });
+};
