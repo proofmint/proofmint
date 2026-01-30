@@ -255,6 +255,7 @@ enum AuthTokenType {
   MAGIC_LINK
   OTP
   EMAIL_VERIFICATION
+  PASSWORD_RESET
 }
 
 enum JobStatus {
