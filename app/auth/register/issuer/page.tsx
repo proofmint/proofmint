@@ -125,7 +125,6 @@ export default function IssuerRegisterPage() {
                     <Label htmlFor="orgName">Organization Name *</Label>
                     <Input
                       id="orgName"
-                      placeholder="Your Organization"
                       required
                     />
                   </div>
@@ -134,7 +133,6 @@ export default function IssuerRegisterPage() {
                     <Input
                       id="website"
                       type="url"
-                      placeholder="https://example.com"
                     />
                   </div>
                 </div>
@@ -144,7 +142,6 @@ export default function IssuerRegisterPage() {
                     <Label htmlFor="contactPerson">Contact Person *</Label>
                     <Input
                       id="contactPerson"
-                      placeholder="John Doe"
                       required
                     />
                   </div>
@@ -153,7 +150,6 @@ export default function IssuerRegisterPage() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="contact@example.com"
                       required
                     />
                   </div>
