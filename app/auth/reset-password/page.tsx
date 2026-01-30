@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import Logo from "@/public/images/Logo.png";
 import Image from "next/image";
 import CommonHeader from "@/components/CommonHeader";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -123,122 +123,130 @@ export default function ResetPasswordPage() {
 
   if (isValidToken === null) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
-        <CommonHeader />
-        <div className="flex items-center justify-center mt-10 p-4">
-          <Card className="w-full max-w-md">
-            <CardContent className="pt-6">
-              <p className="text-center">Verifying your reset link...</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card className="w-full max-w-md">
+        <CardContent className="pt-6">
+          <p className="text-center">Verifying your reset link...</p>
+        </CardContent>
+      </Card>
     );
   }
 
   if (isValidToken === false) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
-        <CommonHeader />
-        <div className="flex items-center justify-center mt-10 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <Image src={Logo} alt="ProofMint" width={32} height={32} />
-                <span className="text-2xl font-bold">ProofMint</span>
-              </div>
-              <CardTitle>Invalid Reset Link</CardTitle>
-              <CardDescription>
-                This password reset link is invalid or has expired.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-              <p className="text-sm text-gray-600 mb-4">
-                Please request a new password reset link.
-              </p>
-              <Link href="/auth/forgot-password">
-                <Button
-                  className="w-full"
-                  style={{ backgroundColor: "#9681FA" }}
-                >
-                  Request New Reset Link
-                </Button>
-              </Link>
-              <div className="mt-4">
-                <Link
-                  href="/auth/login"
-                  className="text-sm text-[#9681FA] hover:underline"
-                >
-                  Back to Sign In
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <Image src={Logo} alt="ProofMint" width={32} height={32} />
+            <span className="text-2xl font-bold">ProofMint</span>
+          </div>
+          <CardTitle>Invalid Reset Link</CardTitle>
+          <CardDescription>
+            This password reset link is invalid or has expired.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center">
+          <p className="text-sm text-gray-600 mb-4">
+            Please request a new password reset link.
+          </p>
+          <Link href="/auth/forgot-password">
+            <Button
+              className="w-full"
+              style={{ backgroundColor: "#9681FA" }}
+            >
+              Request New Reset Link
+            </Button>
+          </Link>
+          <div className="mt-4">
+            <Link
+              href="/auth/login"
+              className="text-sm text-[#9681FA] hover:underline"
+            >
+              Back to Sign In
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
+    <Card className="w-full max-w-md">
+      <CardHeader className="text-center">
+        <div className="flex items-center justify-center space-x-2 mb-4">
+          <Image src={Logo} alt="ProofMint" width={32} height={32} />
+          <span className="text-2xl font-bold">ProofMint</span>
+        </div>
+        <CardTitle>Set New Password</CardTitle>
+        <CardDescription>
+          Enter your new password below
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="password">New Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="Enter new password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full"
+            style={{ backgroundColor: "#9681FA" }}
+            disabled={isLoading}
+          >
+            {isLoading ? "Resetting..." : "Reset Password"}
+          </Button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <Link
+            href="/auth/login"
+            className="text-sm text-[#9681FA] hover:underline"
+          >
+            Back to Sign In
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <Card className="w-full max-w-md">
+      <CardContent className="pt-6">
+        <p className="text-center">Verifying your reset link...</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
       <CommonHeader />
       <div className="flex items-center justify-center mt-10 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <Image src={Logo} alt="ProofMint" width={32} height={32} />
-              <span className="text-2xl font-bold">ProofMint</span>
-            </div>
-            <CardTitle>Set New Password</CardTitle>
-            <CardDescription>
-              Enter your new password below
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">New Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter new password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button
-                type="submit"
-                className="w-full"
-                style={{ backgroundColor: "#9681FA" }}
-                disabled={isLoading}
-              >
-                {isLoading ? "Resetting..." : "Reset Password"}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <Link
-                href="/auth/login"
-                className="text-sm text-[#9681FA] hover:underline"
-              >
-                Back to Sign In
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        <Suspense fallback={<LoadingFallback />}>
+          <ResetPasswordForm />
+        </Suspense>
       </div>
     </div>
   );
