@@ -10,7 +10,7 @@ const participant_badge = {
     assetId: "3197424448",
     description:
       "This is issued to all the participants of TEDxSIU Hyderabad season 1",
-    imageUrl: `https://ipfs.io/ipfs/Qma12PemWJnz6JQw1ATrTTiBawjcEt4jrBYfmaJKotauiD`,
+    imageUrl: `Qma12PemWJnz6JQw1ATrTTiBawjcEt4jrBYfmaJKotauiD`,
     unitName: "TEDxSIUH",
     badgeType: "event",
     customProperties: [
@@ -316,7 +316,7 @@ const volunteer_badge = {
     assetId: "3200851325",
     description:
       "This is issued to all the volunteers of TEDxSIU Hyderabad season 1",
-    imageUrl: `https://ipfs.io/ipfs/Qmazvk2Je6YvZLkJWGoaJ47oWv4f6ZUVMRGKxw6cvCySGJ`,
+    imageUrl: `Qmazvk2Je6YvZLkJWGoaJ47oWv4f6ZUVMRGKxw6cvCySGJ`,
     unitName: "TEDxSIUH",
     badgeType: "achievement",
     customProperties: [
@@ -346,7 +346,7 @@ const core_team_badge = {
     assetId: "3196189474",
     description:
       "This is issued to all the core team of TEDxSIU Hyderabad season 1",
-    imageUrl: `https://ipfs.io/ipfs/QmWwmceTCJp7zufVCscPwc8D8ork47A6p1sM3Mo57mi3z5`,
+    imageUrl: `QmWwmceTCJp7zufVCscPwc8D8ork47A6p1sM3Mo57mi3z5`,
     unitName: "TEDxSIUH",
     badgeType: "achievement",
     customProperties: [

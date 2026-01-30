@@ -15,13 +15,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User } from "lucide-react";
+import { Building } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Logo from "@/public/images/Logo.png";
 import Image from "next/image";
 import CommonHeader from "@/components/CommonHeader";
 
-export default function RegisterPage() {
+export default function IssuerRegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -33,9 +33,9 @@ export default function RegisterPage() {
       email: { value: string };
       password: { value: string };
       confirmPassword: { value: string };
-      firstName: { value: string };
-      lastName: { value: string };
       orgName: { value: string };
+      website?: { value: string };
+      contactPerson: { value: string };
     };
 
     const email = target.email.value;
@@ -53,14 +53,13 @@ export default function RegisterPage() {
 
     setIsLoading(true);
 
-    const name = `${target.firstName?.value} ${target.lastName?.value}`;
-
     const body = {
-      name,
+      name: target.contactPerson.value,
       email,
       password,
-      role: "receiver" as const,
-      organizationName: target.orgName?.value,
+      role: "issuer" as const,
+      organizationName: target.orgName.value,
+      websiteUrl: target.website?.value,
     };
 
     try {
@@ -107,50 +106,59 @@ export default function RegisterPage() {
               <Image src={Logo} alt="ProofMint" width={32} height={32} />
               <span className="text-2xl font-bold">ProofMint</span>
             </div>
-            <CardTitle>Create Your Account</CardTitle>
+            <CardTitle>Create Your Organization Account</CardTitle>
             <CardDescription>
               Join the future of digital credentialing
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Receiver Registration Form */}
+              {/* Issuer Registration Form */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2 mb-4">
-                  <User className="h-5 w-5 text-[#9681FA]" />
-                  <span className="font-medium">Receive Credentials</span>
+                  <Building className="h-5 w-5 text-[#9681FA]" />
+                  <span className="font-medium">Issue Credentials</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name *</Label>
-                    <Input id="firstName" placeholder="John" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name *</Label>
-                    <Input id="lastName" placeholder="Doe" required />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="john.doe@example.com"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="orgName">College/Organization Name *</Label>
+                    <Label htmlFor="orgName">Organization Name *</Label>
                     <Input
                       id="orgName"
                       placeholder="Your Organization"
                       required
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="website">Website</Label>
+                    <Input
+                      id="website"
+                      type="url"
+                      placeholder="https://example.com"
+                    />
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="contactPerson">Contact Person *</Label>
+                    <Input
+                      id="contactPerson"
+                      placeholder="John Doe"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Official Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="contact@example.com"
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="password">Password *</Label>
@@ -186,12 +194,12 @@ export default function RegisterPage() {
                 </Link>
               </p>
               <p className="text-sm text-gray-600 mt-2">
-                Are you an organization?{" "}
+                Are you an individual?{" "}
                 <Link
-                  href="/auth/register/issuer"
+                  href="/auth/register"
                   className="text-[#9681FA] hover:underline"
                 >
-                  Register as issuer
+                  Register as receiver
                 </Link>
               </p>
             </div>
