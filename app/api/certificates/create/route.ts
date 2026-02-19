@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
         receiverEmail: cleanString(recipientEmail as string),
         issuerId: issuer.id,
         fieldData: properties,
-        generatedImageUrl: `https://ipfs.io/ipfs/${pinataResult.IpfsHash}`,
+        generatedImageUrl: pinataResult.IpfsHash,
         status: "PENDING",
       },
     });

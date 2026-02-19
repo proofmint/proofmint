@@ -30,7 +30,7 @@ export default function HomePage() {
             our decentralized credentialing platform.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/register?role=issuer">
+            <Link href="/auth/register/issuer">
               <Button
                 size="lg"
                 style={{ backgroundColor: "#9681FA" }}
@@ -39,7 +39,7 @@ export default function HomePage() {
                 Start Issuing Credentials
               </Button>
             </Link>
-            <Link href="/auth/register?role=receiver">
+            <Link href="/auth/register">
               <Button size="lg" variant="outline">
                 Claim Your Credentials
               </Button>

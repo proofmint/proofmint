@@ -20,6 +20,8 @@ model User {
   updatedAt        DateTime    @updatedAt
   authTokens       AuthToken[]
   issuerProfile    Issuer?
+
+  @@map("User")
 }
 
 model AuthToken {
@@ -32,6 +34,7 @@ model AuthToken {
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId], map: "AuthToken_userId_fkey")
+  @@map("AuthToken")
 }
 
 model Issuer {
@@ -53,6 +56,8 @@ model Issuer {
   issuedBadges           IssuedBadge[]           @relation("IssuerBadges")
   issuedCertificates     IssuedCertificate[]     @relation("IssuerCertificates")
   user                   User                    @relation(fields: [userId], references: [id])
+
+  @@map("Issuer")
 }
 
 model Badge {
@@ -72,6 +77,7 @@ model Badge {
   issuedInstances  IssuedBadge[]
 
   @@index([issuerId], map: "Badge_issuerId_fkey")
+  @@map("Badge")
 }
 
 model BadgeClaimLink {
@@ -88,6 +94,7 @@ model BadgeClaimLink {
   issuedBadges IssuedBadge[]
 
   @@index([issuerId], map: "BadgeClaimLink_issuerId_fkey")
+  @@map("BadgeClaimLink")
 }
 
 model IssuedBadge {
@@ -107,6 +114,7 @@ model IssuedBadge {
   @@index([badgeId], map: "IssuedBadge_badgeId_fkey")
   @@index([claimLinkId], map: "IssuedBadge_claimLinkId_fkey")
   @@index([issuerId], map: "IssuedBadge_issuerId_fkey")
+  @@map("IssuedBadge")
 }
 
 model CertificateTemplate {
@@ -123,6 +131,7 @@ model CertificateTemplate {
   issuedInstances     IssuedCertificate[]
 
   @@index([issuerId], map: "CertificateTemplate_issuerId_fkey")
+  @@map("CertificateTemplate")
 }
 
 model IssuedCertificate {
@@ -145,6 +154,7 @@ model IssuedCertificate {
   @@index([issuerId], map: "IssuedCertificate_issuerId_fkey")
   @@index([jobId], map: "IssuedCertificate_jobId_fkey")
   @@index([templateId], map: "IssuedCertificate_templateId_fkey")
+  @@map("IssuedCertificate")
 }
 
 model BulkIssuanceJob {
@@ -165,6 +175,7 @@ model BulkIssuanceJob {
 
   @@index([certificateTemplateId], map: "BulkIssuanceJob_certificateTemplateId_fkey")
   @@index([issuerId], map: "BulkIssuanceJob_issuerId_fkey")
+  @@map("BulkIssuanceJob")
 }
 
 model CreditPurchaseRequest {
@@ -182,6 +193,7 @@ model CreditPurchaseRequest {
   issuer             Issuer        @relation(fields: [issuerId], references: [id])
 
   @@index([issuerId], map: "CreditPurchaseRequest_issuerId_fkey")
+  @@map("CreditPurchaseRequest")
 }
 
 model CreditTransaction {
@@ -193,6 +205,7 @@ model CreditTransaction {
   issuer    Issuer          @relation(fields: [issuerId], references: [id])
 
   @@index([issuerId], map: "CreditTransaction_issuerId_fkey")
+  @@map("CreditTransaction")
 }
 
 model Coupon {
@@ -212,6 +225,7 @@ model Coupon {
   usages            CouponUsage[]
 
   @@index([issuerId], map: "Coupon_issuerId_fkey")
+  @@map("Coupon")
 }
 
 model CouponUsage {
@@ -226,12 +240,15 @@ model CouponUsage {
 
   @@index([couponId], map: "CouponUsage_couponId_fkey")
   @@index([issuerId], map: "CouponUsage_issuerId_fkey")
+  @@map("CouponUsage")
 }
 
 model CreditPrice {
   id          String  @id @default("singleton")
   value       Decimal
   upiQrBase64 String? @db.LongText
+
+  @@map("CreditPrice")
 }
 
 enum Role {
@@ -255,6 +272,7 @@ enum AuthTokenType {
   MAGIC_LINK
   OTP
   EMAIL_VERIFICATION
+  PASSWORD_RESET
 }
 
 enum JobStatus {
