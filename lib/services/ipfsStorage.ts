@@ -1,3 +1,4 @@
+import { PINATA_GATEWAY } from '../const';
 import { uploadToPinata, uploadJsonToPinata } from '../pinata';
 import crypto from 'crypto';
 
@@ -161,7 +162,7 @@ export async function uploadCertificateWithMetadata(
     return {
       imageHash: imageResult.IpfsHash,
       metadataHash: metadataResult.IpfsHash,
-      imageUrl: `https://ipfs.io/ipfs/${imageResult.IpfsHash}`,
+      imageUrl: `${PINATA_GATEWAY}${imageResult.IpfsHash}`,
     };
   } catch (error) {
     console.error(`[IPFSStorage] Failed in complete certificate upload workflow:`, error);

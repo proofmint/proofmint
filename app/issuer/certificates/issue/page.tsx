@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,7 +8,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Loader2, AlertCircle } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  FileText,
+  Loader2,
+  AlertCircle,
+  Eye,
+  CreditCard,
+  Mail,
+  CheckCircle2,
+  Upload,
+  Database,
+  ArrowLeft,
+  Info,
+  RefreshCw,
+} from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -29,6 +43,12 @@ interface Template {
   dynamicFields: DynamicField[]
 }
 
+const STEPS = [
+  { num: 1, label: "Select Template" },
+  { num: 2, label: "Recipient" },
+  { num: 3, label: "Certificate Data" },
+]
+
 export default function IssueCertificatePage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
@@ -37,12 +57,22 @@ export default function IssueCertificatePage() {
   const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
-  
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
+  const [issuedCertificate, setIssuedCertificate] = useState<{ id: string; assetId: string; generatedImageUrl: string } | null>(null)
+  const prevPreviewUrl = useRef<string | null>(null)
+
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Fetch templates
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (prevPreviewUrl.current) URL.revokeObjectURL(prevPreviewUrl.current)
+    }
+  }, [])
+
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
@@ -50,21 +80,13 @@ export default function IssueCertificatePage() {
         if (!res.ok) throw new Error("Failed to fetch templates")
         const data = await res.json()
         setTemplates(data)
-        
-        // Auto-select template from URL if provided
         const templateId = searchParams.get("template")
         if (templateId) {
           const template = data.find((t: Template) => t.id === templateId)
-          if (template) {
-            setSelectedTemplate(template)
-          }
+          if (template) setSelectedTemplate(template)
         }
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load templates",
-          variant: "destructive",
-        })
+      } catch {
+        toast({ title: "Error", description: "Failed to load templates", variant: "destructive" })
       } finally {
         setIsLoadingTemplates(false)
       }
@@ -72,14 +94,13 @@ export default function IssueCertificatePage() {
     fetchTemplates()
   }, [searchParams, toast])
 
-  // Fetch credit balance
   useEffect(() => {
     const fetchCredits = async () => {
       try {
         const res = await fetch("/api/issuer/credits")
         const data = await res.json()
         setCreditBalance(data.creditBalance ?? 0)
-      } catch (e) {
+      } catch {
         setCreditBalance(0)
       }
     }
@@ -91,256 +112,517 @@ export default function IssueCertificatePage() {
     if (template) {
       setSelectedTemplate(template)
       setFieldData({})
+      setPreviewUrl(null)
     }
   }
 
   const updateFieldData = (fieldName: string, value: string) => {
-    setFieldData((prev) => ({
-      ...prev,
-      [fieldName]: value,
-    }))
+    setFieldData((prev) => ({ ...prev, [fieldName]: value }))
   }
+
+  const generatePreview = useCallback(async () => {
+    if (!selectedTemplate) return
+    setIsGeneratingPreview(true)
+    try {
+      const res = await fetch("/api/certificates/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: selectedTemplate.id, fieldData }),
+      })
+      if (!res.ok) throw new Error("Preview failed")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      if (prevPreviewUrl.current) URL.revokeObjectURL(prevPreviewUrl.current)
+      prevPreviewUrl.current = url
+      setPreviewUrl(url)
+    } catch {
+      toast({ title: "Preview failed", description: "Could not generate preview image.", variant: "destructive" })
+    } finally {
+      setIsGeneratingPreview(false)
+    }
+  }, [selectedTemplate, fieldData, toast])
 
   const handleIssueCertificate = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!selectedTemplate) {
-      toast({
-        title: "No template selected",
-        description: "Please select a certificate template first.",
-        variant: "destructive",
-      })
+      toast({ title: "No template selected", description: "Please select a certificate template first.", variant: "destructive" })
       return
     }
-
     if (!recipientEmail) {
-      toast({
-        title: "Missing recipient email",
-        description: "Please enter the recipient's email address.",
-        variant: "destructive",
-      })
+      toast({ title: "Missing recipient email", description: "Please enter the recipient's email address.", variant: "destructive" })
       return
     }
-
-    // Check if all required fields are filled
-    const missingFields = selectedTemplate.dynamicFields.filter(
-      (field) => !fieldData[field.name]
-    )
+    const missingFields = selectedTemplate.dynamicFields.filter((f) => !fieldData[f.name])
     if (missingFields.length > 0) {
-      toast({
-        title: "Missing field data",
-        description: `Please fill in: ${missingFields.map(f => f.name).join(", ")}`,
-        variant: "destructive",
-      })
+      toast({ title: "Missing field data", description: `Please fill in: ${missingFields.map((f) => f.name).join(", ")}`, variant: "destructive" })
       return
     }
-
-    // Check credit balance
     if ((creditBalance ?? 0) < 1) {
-      toast({
-        title: "Insufficient credits",
-        description: "You need at least 1 credit to issue a certificate.",
-        variant: "destructive",
-      })
+      toast({ title: "Insufficient credits", description: "You need at least 1 credit to issue a certificate.", variant: "destructive" })
       return
     }
 
     setIsLoading(true)
-
     try {
       const response = await fetch("/api/certificates/issue", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          templateId: selectedTemplate.id,
-          recipientEmail,
-          fieldData,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: selectedTemplate.id, recipientEmail, fieldData }),
       })
-
       const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to issue certificate")
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to issue certificate")
-      }
-
-      toast({
-        title: "Certificate issued successfully!",
-        description: `Certificate has been minted and sent to ${recipientEmail}`,
-      })
-      
-      // Update credit balance
+      setIssuedCertificate(data.certificate)
       setCreditBalance((prev) => (prev ?? 0) - 1)
-      
-      router.push("/issuer/certificates")
+      toast({ title: "Certificate issued!", description: `Minted and sent to ${recipientEmail}` })
     } catch (error) {
-      toast({
-        title: "Failed to issue certificate",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      })
+      toast({ title: "Failed to issue certificate", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
   }
 
+  // Active step indicator
+  const activeStep = !selectedTemplate ? 1 : !recipientEmail ? 2 : 3
+
   if (isLoadingTemplates) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-        <p className="ml-4 text-gray-500">Loading templates...</p>
+      <div className="max-w-6xl mx-auto space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-4 w-80" />
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3 space-y-4">
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+          <div className="lg:col-span-2">
+            <Skeleton className="h-80 w-full" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Success state
+  if (issuedCertificate) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6 text-center py-12">
+        <div className="flex justify-center">
+          <div className="rounded-full bg-green-100 p-4">
+            <CheckCircle2 className="h-12 w-12 text-green-600" />
+          </div>
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Certificate Issued Successfully</h2>
+          <p className="text-gray-500 mt-2">The certificate has been minted on Algorand and sent to {recipientEmail}.</p>
+        </div>
+        <Card className="text-left">
+          <CardContent className="pt-5 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Certificate ID</span>
+              <span className="font-mono text-xs text-gray-700">{issuedCertificate.id}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Asset ID (Algorand)</span>
+              <span className="font-mono font-medium">{issuedCertificate.assetId}</span>
+            </div>
+          </CardContent>
+        </Card>
+        <div className="flex gap-3 justify-center">
+          <Button variant="outline" onClick={() => router.push("/issuer/certificates")}>
+            View All Certificates
+          </Button>
+          <Button
+            style={{ backgroundColor: "#9681FA" }}
+            onClick={() => {
+              setIssuedCertificate(null)
+              setRecipientEmail("")
+              setFieldData({})
+              setPreviewUrl(null)
+            }}
+          >
+            Issue Another
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Issue Single Certificate</h1>
-        <p className="text-gray-600">
-          Generate and mint a certificate for one recipient
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">Issue Certificate</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Generate a blockchain-verified certificate and deliver it to a recipient.
+          </p>
+        </div>
+        {/* Credit Badge */}
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2">
+          <CreditCard className="h-4 w-4 text-gray-400" />
+          <span className="text-sm text-gray-500">Balance</span>
+          {creditBalance === null ? (
+            <Skeleton className="h-5 w-10" />
+          ) : (
+            <span className={`font-bold text-sm ${creditBalance < 1 ? "text-red-600" : "text-gray-900"}`}>
+              {creditBalance} credit{creditBalance !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Credit Balance Alert */}
+      {/* Insufficient credits alert */}
       {creditBalance !== null && creditBalance < 1 && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Insufficient credits. You need at least 1 credit to issue a certificate.
-            Current balance: {creditBalance} credits.
+            You have no credits remaining. Purchase more credits to issue certificates.
           </AlertDescription>
         </Alert>
       )}
 
-      <form onSubmit={handleIssueCertificate} className="space-y-6">
-        {/* Template Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Template</CardTitle>
-            <CardDescription>
-              Choose a certificate template to use
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Select
-              value={selectedTemplate?.id || ""}
-              onValueChange={handleTemplateSelect}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a certificate template" />
-              </SelectTrigger>
-              <SelectContent>
-                {templates.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.templateName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Step indicators */}
+      <div className="flex items-center gap-2">
+        {STEPS.map((step, i) => (
+          <div key={step.num} className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                  activeStep > step.num
+                    ? "bg-green-500 text-white"
+                    : activeStep === step.num
+                    ? "text-white"
+                    : "bg-gray-100 text-gray-400"
+                }`}
+                style={activeStep === step.num ? { backgroundColor: "#9681FA" } : undefined}
+              >
+                {activeStep > step.num ? <CheckCircle2 className="h-3.5 w-3.5" /> : step.num}
+              </div>
+              <span
+                className={`text-sm font-medium hidden sm:inline ${
+                  activeStep === step.num ? "text-gray-900" : "text-gray-400"
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && <div className="h-px w-8 bg-gray-200 flex-shrink-0" />}
+          </div>
+        ))}
+      </div>
 
+      {/* Main layout */}
+      <form onSubmit={handleIssueCertificate}>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+          {/* Left: Form */}
+          <div className="lg:col-span-3 space-y-5">
+            {/* Step 1: Template */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                    style={{ backgroundColor: "#9681FA" }}
+                  >
+                    1
+                  </div>
+                  <CardTitle className="text-base">Select Certificate Template</CardTitle>
+                </div>
+                <CardDescription className="ml-8">
+                  Choose the design and field layout for this certificate.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {templates.length === 0 ? (
+                  <div className="text-center py-6 text-gray-400 text-sm">
+                    No templates found.{" "}
+                    <a href="/issuer/templates" className="underline text-[#9681FA]">
+                      Create a template
+                    </a>{" "}
+                    first.
+                  </div>
+                ) : (
+                  <Select value={selectedTemplate?.id || ""} onValueChange={handleTemplateSelect}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a certificate template…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.templateName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {selectedTemplate && (
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-3">
+                    <div>
+                      <p className="font-medium text-sm text-gray-800">{selectedTemplate.templateName}</p>
+                      {selectedTemplate.templateDescription && (
+                        <p className="text-xs text-gray-500 mt-1">{selectedTemplate.templateDescription}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1.5 uppercase tracking-wide font-medium">Dynamic Fields</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedTemplate.dynamicFields.map((f, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            {f.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Step 2: Recipient */}
             {selectedTemplate && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium mb-2">{selectedTemplate.templateName}</h4>
-                <p className="text-sm text-gray-600 mb-3">
-                  {selectedTemplate.templateDescription}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {selectedTemplate.dynamicFields.map((field, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {field.name}
-                    </Badge>
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                      style={{ backgroundColor: "#9681FA" }}
+                    >
+                      2
+                    </div>
+                    <CardTitle className="text-base">Recipient Details</CardTitle>
+                  </div>
+                  <CardDescription className="ml-8">
+                    The certificate will be emailed and minted to this address.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="recipientEmail" className="flex items-center gap-1.5">
+                      <Mail className="h-3.5 w-3.5 text-gray-400" />
+                      Recipient Email
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="recipientEmail"
+                      type="email"
+                      placeholder="recipient@example.com"
+                      value={recipientEmail}
+                      onChange={(e) => setRecipientEmail(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-gray-400">
+                      An email notification with the certificate will be sent to this address.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Step 3: Certificate Fields */}
+            {selectedTemplate && selectedTemplate.dynamicFields.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                      style={{ backgroundColor: "#9681FA" }}
+                    >
+                      3
+                    </div>
+                    <CardTitle className="text-base">Certificate Content</CardTitle>
+                  </div>
+                  <CardDescription className="ml-8">
+                    These values will be rendered onto the certificate image.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {selectedTemplate.dynamicFields.map((field, index) => (
+                      <div key={index} className="space-y-1.5">
+                        <Label htmlFor={field.name} className="capitalize">
+                          {field.name}
+                          <span className="text-red-500 ml-0.5">*</span>
+                        </Label>
+                        <Input
+                          id={field.name}
+                          placeholder={`Enter ${field.name.toLowerCase()}`}
+                          value={fieldData[field.name] || ""}
+                          onChange={(e) => updateFieldData(field.name, e.target.value)}
+                          required
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* What happens next */}
+            {selectedTemplate && (
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Info className="h-4 w-4 text-blue-500" />
+                  <p className="text-sm font-medium text-blue-800">What happens when you issue?</p>
+                </div>
+                <ol className="space-y-1.5 text-xs text-blue-700 list-none">
+                  {[
+                    { icon: <Eye className="h-3 w-3" />, text: "Certificate image is generated from your template" },
+                    { icon: <Upload className="h-3 w-3" />, text: "Image & metadata uploaded to IPFS (decentralized storage)" },
+                    { icon: <Database className="h-3 w-3" />, text: "NFT minted on the Algorand blockchain" },
+                    { icon: <Mail className="h-3 w-3" />, text: "Recipient notified by email with their certificate" },
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <span className="text-blue-400">{item.icon}</span>
+                      {item.text}
+                    </li>
                   ))}
+                </ol>
+              </div>
+            )}
+
+            {/* Actions */}
+            {selectedTemplate && (
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  style={{ backgroundColor: "#9681FA" }}
+                  disabled={isLoading || (creditBalance ?? 0) < 1}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Issuing…
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Issue Certificate
+                      <span className="ml-2 text-xs opacity-80 font-normal">(1 credit)</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Preview Panel */}
+          <div className="lg:col-span-2 lg:sticky lg:top-6">
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-gray-400" />
+                    Certificate Preview
+                  </CardTitle>
+                  {selectedTemplate && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={generatePreview}
+                      disabled={isGeneratingPreview}
+                      className="text-xs h-7"
+                    >
+                      {isGeneratingPreview ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3" />
+                      )}
+                      <span className="ml-1">{previewUrl ? "Refresh" : "Generate"}</span>
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-4">
+                {!selectedTemplate ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+                    <div className="rounded-full bg-gray-100 p-4">
+                      <FileText className="h-8 w-8 text-gray-300" />
+                    </div>
+                    <p className="text-sm text-gray-400">Select a template to preview your certificate.</p>
+                  </div>
+                ) : isGeneratingPreview ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="aspect-[1.41/1] w-full rounded-lg" />
+                  </div>
+                ) : previewUrl ? (
+                  <div className="space-y-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={previewUrl}
+                      alt="Certificate preview"
+                      className="w-full rounded-lg border border-gray-100 shadow-sm"
+                    />
+                    <p className="text-xs text-center text-gray-400">
+                      Preview only — not yet issued or stored on blockchain.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
+                    <div className="rounded-full bg-purple-50 p-4">
+                      <Eye className="h-8 w-8 text-[#9681FA]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Generate a preview</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Fill in the fields above, then click{" "}
+                        <span className="font-medium text-[#9681FA]">Generate</span> to see how your
+                        certificate will look.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={generatePreview}
+                      disabled={isGeneratingPreview}
+                      className="text-xs border-[#9681FA] text-[#9681FA] hover:bg-purple-50"
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      Generate Preview
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Cost summary */}
+            {selectedTemplate && (
+              <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-2">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Issuance Cost</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Cost</span>
+                  <span className="font-medium">1 credit</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Current balance</span>
+                  <span className={`font-medium ${(creditBalance ?? 0) < 1 ? "text-red-600" : "text-gray-900"}`}>
+                    {creditBalance ?? "—"} credits
+                  </span>
+                </div>
+                <div className="border-t border-gray-200 pt-2 flex justify-between text-sm">
+                  <span className="text-gray-600">Balance after</span>
+                  <span className={`font-bold ${((creditBalance ?? 0) - 1) < 0 ? "text-red-600" : "text-gray-900"}`}>
+                    {creditBalance !== null ? creditBalance - 1 : "—"} credits
+                  </span>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Recipient Information */}
-        {selectedTemplate && (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Recipient Information</CardTitle>
-                <CardDescription>
-                  Enter the recipient's email address
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Label htmlFor="recipientEmail">Recipient Email *</Label>
-                  <Input
-                    id="recipientEmail"
-                    type="email"
-                    placeholder="recipient@example.com"
-                    value={recipientEmail}
-                    onChange={(e) => setRecipientEmail(e.target.value)}
-                    required
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Certificate Data */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Certificate Data</CardTitle>
-                <CardDescription>
-                  Fill in the dynamic field values for this certificate
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {selectedTemplate.dynamicFields.map((field, index) => (
-                    <div key={index} className="space-y-2">
-                      <Label htmlFor={field.name}>{field.name} *</Label>
-                      <Input
-                        id={field.name}
-                        placeholder={`Enter ${field.name.toLowerCase()}`}
-                        value={fieldData[field.name] || ""}
-                        onChange={(e) => updateFieldData(field.name, e.target.value)}
-                        required
-                      />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Submit Button */}
-            <div className="flex justify-end space-x-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                style={{ backgroundColor: "#9681FA" }}
-                disabled={isLoading || (creditBalance ?? 0) < 1}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Issuing Certificate...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Issue Certificate (1 credit)
-                  </>
-                )}
-              </Button>
-            </div>
-          </>
-        )}
+          </div>
+        </div>
       </form>
     </div>
   )

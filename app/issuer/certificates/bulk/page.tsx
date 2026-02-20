@@ -4,14 +4,36 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Upload, Loader2, AlertCircle, Download, FileText, CheckCircle } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Upload,
+  Loader2,
+  AlertCircle,
+  Download,
+  FileText,
+  CheckCircle2,
+  ArrowLeft,
+  CreditCard,
+  Eye,
+  X,
+  Users,
+  Info,
+  RefreshCw,
+  AlertTriangle,
+} from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
+import Papa from "papaparse"
 
 interface DynamicField {
   name: string
@@ -30,49 +52,59 @@ interface Template {
   dynamicFields: DynamicField[]
 }
 
-interface BulkJob {
-  id: string
-  totalItems: number
-  status: string
+interface CSVRow {
+  email: string
+  fieldData: Record<string, string>
+  _rowIndex: number
+  _errors: string[]
+}
+
+interface PreviewState {
+  rowIndex: number
+  imageUrl: string | null
+  isLoading: boolean
 }
 
 export default function BulkIssueCertificatePage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
   const [csvFile, setCsvFile] = useState<File | null>(null)
+  const [parsedRows, setParsedRows] = useState<CSVRow[]>([])
+  const [parseErrors, setParseErrors] = useState<string[]>([])
   const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
-  const [bulkJob, setBulkJob] = useState<BulkJob | null>(null)
+  const [bulkJob, setBulkJob] = useState<{ id: string; totalItems: number; status: string } | null>(null)
+  const [previewState, setPreviewState] = useState<PreviewState | null>(null)
+  const [generatingRowIndex, setGeneratingRowIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+  const previewBlobUrls = useRef<Map<number, string>>(new Map())
+
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Fetch templates
+  // Cleanup preview blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      previewBlobUrls.current.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [])
+
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
         const res = await fetch("/api/templates")
-        if (!res.ok) throw new Error("Failed to fetch templates")
+        if (!res.ok) throw new Error("Failed")
         const data = await res.json()
         setTemplates(data)
-        
-        // Auto-select template from URL if provided
         const templateId = searchParams.get("template")
         if (templateId) {
-          const template = data.find((t: Template) => t.id === templateId)
-          if (template) {
-            setSelectedTemplate(template)
-          }
+          const t = data.find((t: Template) => t.id === templateId)
+          if (t) setSelectedTemplate(t)
         }
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load templates",
-          variant: "destructive",
-        })
+      } catch {
+        toast({ title: "Error", description: "Failed to load templates", variant: "destructive" })
       } finally {
         setIsLoadingTemplates(false)
       }
@@ -80,14 +112,13 @@ export default function BulkIssueCertificatePage() {
     fetchTemplates()
   }, [searchParams, toast])
 
-  // Fetch credit balance
   useEffect(() => {
     const fetchCredits = async () => {
       try {
         const res = await fetch("/api/issuer/credits")
         const data = await res.json()
         setCreditBalance(data.creditBalance ?? 0)
-      } catch (e) {
+      } catch {
         setCreditBalance(0)
       }
     }
@@ -95,362 +126,650 @@ export default function BulkIssueCertificatePage() {
   }, [])
 
   const handleTemplateSelect = (templateId: string) => {
-    const template = templates.find((t) => t.id === templateId)
-    if (template) {
-      setSelectedTemplate(template)
+    const t = templates.find((t) => t.id === templateId)
+    if (t) {
+      setSelectedTemplate(t)
+      setCsvFile(null)
+      setParsedRows([])
+      setParseErrors([])
     }
+  }
+
+  const parseCSVFile = (file: File, template: Template) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const errors: string[] = []
+        const rows: CSVRow[] = []
+        const headers = results.meta.fields ?? []
+
+        if (!headers.includes("email")) {
+          errors.push('CSV is missing a required "email" column.')
+        }
+
+        const requiredFields = template.dynamicFields.map((f) => f.name)
+        const missingCols = requiredFields.filter((f) => !headers.includes(f))
+        if (missingCols.length > 0) {
+          errors.push(`CSV is missing columns for: ${missingCols.join(", ")}`)
+        }
+
+        if (errors.length > 0) {
+          setParseErrors(errors)
+          setParsedRows([])
+          return
+        }
+
+        let hasErrors = false
+          ; (results.data as Record<string, string>[]).forEach((row, i) => {
+            const rowErrors: string[] = []
+            const email = row["email"]?.trim() ?? ""
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+              rowErrors.push("Invalid email")
+              hasErrors = true
+            }
+            const fieldData: Record<string, string> = {}
+            for (const f of requiredFields) {
+              const val = row[f]?.trim() ?? ""
+              if (!val) {
+                rowErrors.push(`"${f}" is empty`)
+                hasErrors = true
+              }
+              fieldData[f] = val
+            }
+            rows.push({ email, fieldData, _rowIndex: i, _errors: rowErrors })
+          })
+
+        if (rows.length === 0) {
+          errors.push("No data rows found in CSV.")
+          setParseErrors(errors)
+          setParsedRows([])
+          return
+        }
+
+        setParseErrors(hasErrors ? [] : [])
+        setParsedRows(rows)
+        if (hasErrors) {
+          toast({
+            title: "CSV has validation issues",
+            description: "Some rows have errors. Fix them before issuing.",
+            variant: "destructive",
+          })
+        }
+      },
+      error: (err) => {
+        setParseErrors([`Failed to parse CSV: ${err.message}`])
+        setParsedRows([])
+      },
+    })
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      if (!file.name.endsWith(".csv")) {
-        toast({
-          title: "Invalid file type",
-          description: "Please upload a CSV file",
-          variant: "destructive",
-        })
-        return
-      }
-      setCsvFile(file)
+    if (!file) return
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      toast({ title: "Invalid file type", description: "Please upload a CSV file.", variant: "destructive" })
+      return
     }
+    if (!selectedTemplate) {
+      toast({ title: "Select a template first", description: "Choose a template before uploading.", variant: "destructive" })
+      return
+    }
+    setCsvFile(file)
+    setParsedRows([])
+    setParseErrors([])
+    // Revoke old blob urls
+    previewBlobUrls.current.forEach((url) => URL.revokeObjectURL(url))
+    previewBlobUrls.current.clear()
+    parseCSVFile(file, selectedTemplate)
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      toast({ title: "Invalid file type", description: "Please drop a CSV file.", variant: "destructive" })
+      return
+    }
+    if (!selectedTemplate) {
+      toast({ title: "Select a template first", description: "Choose a template before uploading.", variant: "destructive" })
+      return
+    }
+    setCsvFile(file)
+    setParsedRows([])
+    setParseErrors([])
+    previewBlobUrls.current.forEach((url) => URL.revokeObjectURL(url))
+    previewBlobUrls.current.clear()
+    parseCSVFile(file, selectedTemplate)
   }
 
   const downloadSampleCSV = () => {
     if (!selectedTemplate) return
-
-    // Create sample CSV content
-    const headers = ["email", ...selectedTemplate.dynamicFields.map(f => f.name)]
-    const sampleRow = [
-      "recipient@example.com",
-      ...selectedTemplate.dynamicFields.map(f => `Sample ${f.name}`)
-    ]
-    
-    const csvContent = [
-      headers.join(","),
-      sampleRow.join(",")
-    ].join("\n")
-
-    // Create and download file
+    const headers = ["email", ...selectedTemplate.dynamicFields.map((f) => f.name)]
+    const sampleRow = ["recipient@example.com", ...selectedTemplate.dynamicFields.map((f) => `Sample ${f.name}`)]
+    const csvContent = [headers.join(","), sampleRow.join(",")].join("\n")
     const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
+    const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `${selectedTemplate.templateName.replace(/\s+/g, "_")}_sample.csv`
+    a.download = `${selectedTemplate.templateName.replace(/\s+/g, "_")}_template.csv`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
+    URL.revokeObjectURL(url)
+  }
+
+  const generateRowPreview = async (row: CSVRow) => {
+    if (!selectedTemplate) return
+    setGeneratingRowIndex(row._rowIndex)
+
+    // Check cache
+    if (previewBlobUrls.current.has(row._rowIndex)) {
+      setPreviewState({ rowIndex: row._rowIndex, imageUrl: previewBlobUrls.current.get(row._rowIndex)!, isLoading: false })
+      setGeneratingRowIndex(null)
+      return
+    }
+
+    setPreviewState({ rowIndex: row._rowIndex, imageUrl: null, isLoading: true })
+
+    try {
+      const res = await fetch("/api/certificates/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: selectedTemplate.id, fieldData: row.fieldData }),
+      })
+      if (!res.ok) throw new Error("Preview failed")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      previewBlobUrls.current.set(row._rowIndex, url)
+      setPreviewState({ rowIndex: row._rowIndex, imageUrl: url, isLoading: false })
+    } catch {
+      toast({ title: "Preview failed", description: "Could not generate preview for this row.", variant: "destructive" })
+      setPreviewState(null)
+    } finally {
+      setGeneratingRowIndex(null)
+    }
   }
 
   const handleBulkIssue = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!selectedTemplate || !csvFile) return
 
-    if (!selectedTemplate) {
-      toast({
-        title: "No template selected",
-        description: "Please select a certificate template first.",
-        variant: "destructive",
-      })
+    const validRows = parsedRows.filter((r) => r._errors.length === 0)
+    if (validRows.length === 0) {
+      toast({ title: "No valid rows", description: "Fix CSV errors before issuing.", variant: "destructive" })
       return
     }
-
-    if (!csvFile) {
-      toast({
-        title: "No CSV file",
-        description: "Please upload a CSV file with recipient data.",
-        variant: "destructive",
-      })
+    if ((creditBalance ?? 0) < validRows.length) {
+      toast({ title: "Insufficient credits", description: `You need ${validRows.length} credits but have ${creditBalance}.`, variant: "destructive" })
       return
     }
 
     setIsLoading(true)
-
     try {
       const formData = new FormData()
       formData.append("templateId", selectedTemplate.id)
       formData.append("csvFile", csvFile)
 
-      const response = await fetch("/api/certificates/bulk", {
-        method: "POST",
-        body: formData,
-      })
-
+      const response = await fetch("/api/certificates/bulk", { method: "POST", body: formData })
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to start bulk issuance")
-      }
+      if (!response.ok) throw new Error(data.error || "Failed to start bulk issuance")
 
       setBulkJob(data.job)
-      
-      toast({
-        title: "Bulk issuance started!",
-        description: `Processing ${data.job.totalItems} certificates. This may take a few minutes.`,
-      })
-      
-      // Update credit balance
       setCreditBalance((prev) => (prev ?? 0) - data.job.totalItems)
-      
+      toast({ title: "Bulk job started!", description: `Processing ${data.job.totalItems} certificates in the background.` })
     } catch (error) {
-      toast({
-        title: "Failed to start bulk issuance",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      })
+      toast({ title: "Failed to start bulk issuance", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
   }
 
+  const validRowCount = parsedRows.filter((r) => r._errors.length === 0).length
+  const errorRowCount = parsedRows.filter((r) => r._errors.length > 0).length
+  const hasInsufficientCredits = creditBalance !== null && validRowCount > 0 && creditBalance < validRowCount
+
   if (isLoadingTemplates) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-        <p className="ml-4 text-gray-500">Loading templates...</p>
+      <div className="max-w-5xl mx-auto space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-4 w-80" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    )
+  }
+
+  if (bulkJob) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6 text-center py-12">
+        <div className="flex justify-center">
+          <div className="rounded-full bg-green-100 p-4">
+            <CheckCircle2 className="h-12 w-12 text-green-600" />
+          </div>
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Bulk Job Created</h2>
+          <p className="text-gray-500 mt-2">
+            {bulkJob.totalItems} certificate{bulkJob.totalItems !== 1 ? "s" : ""} are being processed in the background. Each recipient will receive an email when their certificate is ready.
+          </p>
+        </div>
+        <Card className="text-left">
+          <CardContent className="pt-5 space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Job ID</span>
+              <span className="font-mono text-xs text-gray-700">{bulkJob.id}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Total Certificates</span>
+              <span className="font-medium">{bulkJob.totalItems}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Status</span>
+              <Badge variant="secondary">{bulkJob.status}</Badge>
+            </div>
+          </CardContent>
+        </Card>
+        <div className="flex gap-3 justify-center">
+          <Link href="/issuer/certificates/bulk/jobs">
+            <Button variant="outline">Track Job Progress</Button>
+          </Link>
+          <Link href="/issuer/certificates">
+            <Button style={{ backgroundColor: "#9681FA" }}>View Certificates</Button>
+          </Link>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Bulk Certificate Issuance</h1>
-        <p className="text-gray-600">
-          Issue certificates to multiple recipients via CSV upload
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">Bulk Certificate Issuance</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Upload a CSV to issue certificates to multiple recipients at once.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2">
+          <CreditCard className="h-4 w-4 text-gray-400" />
+          <span className="text-sm text-gray-500">Balance</span>
+          {creditBalance === null ? (
+            <Skeleton className="h-5 w-10" />
+          ) : (
+            <span className={`font-bold text-sm ${hasInsufficientCredits ? "text-red-600" : "text-gray-900"}`}>
+              {creditBalance} credit{creditBalance !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Success Message */}
-      {bulkJob && (
-        <Alert className="border-green-500 bg-green-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            <strong>Bulk job created successfully!</strong>
-            <br />
-            Job ID: {bulkJob.id}
-            <br />
-            Total certificates: {bulkJob.totalItems}
-            <br />
-            Status: {bulkJob.status}
-            <br />
-            <br />
-            Certificates are being processed in the background. You can view the progress in the{" "}
-            <Link href="/issuer/certificates" className="underline font-medium">
-              certificates page
-            </Link>
-            .
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Credit Balance Alert */}
-      {creditBalance !== null && creditBalance < 1 && !bulkJob && (
+      {hasInsufficientCredits && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Insufficient credits. Current balance: {creditBalance} credits.
+            You need <strong>{validRowCount}</strong> credits but only have <strong>{creditBalance}</strong>. Purchase more credits to proceed.
           </AlertDescription>
         </Alert>
       )}
 
-      {!bulkJob && (
-        <form onSubmit={handleBulkIssue} className="space-y-6">
-          {/* Template Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Select Template</CardTitle>
-              <CardDescription>
-                Choose a certificate template to use for bulk issuance
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Select
-                value={selectedTemplate?.id || ""}
-                onValueChange={handleTemplateSelect}
-              >
+      <form onSubmit={handleBulkIssue} className="space-y-5">
+        {/* Template Selection */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: "#9681FA" }}>
+                1
+              </div>
+              <CardTitle className="text-base">Select Certificate Template</CardTitle>
+            </div>
+            <CardDescription className="ml-8">Choose the design and field layout for all certificates in this batch.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {templates.length === 0 ? (
+              <div className="text-center py-6 text-gray-400 text-sm">
+                No templates found.{" "}
+                <a href="/issuer/templates" className="underline text-[#9681FA]">
+                  Create a template
+                </a>{" "}
+                first.
+              </div>
+            ) : (
+              <Select value={selectedTemplate?.id || ""} onValueChange={handleTemplateSelect}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a certificate template" />
+                  <SelectValue placeholder="Choose a certificate template…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {templates.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.templateName}
+                  {templates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.templateName}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            )}
 
-              {selectedTemplate && (
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium mb-2">{selectedTemplate.templateName}</h4>
-                  <p className="text-sm text-gray-600 mb-3">
-                    {selectedTemplate.templateDescription}
-                  </p>
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {selectedTemplate.dynamicFields.map((field, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {field.name}
-                      </Badge>
+            {selectedTemplate && (
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-3">
+                <div>
+                  <p className="font-medium text-sm text-gray-800">{selectedTemplate.templateName}</p>
+                  {selectedTemplate.templateDescription && (
+                    <p className="text-xs text-gray-500 mt-1">{selectedTemplate.templateDescription}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1.5 uppercase tracking-wide font-medium">Required CSV Columns</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant="outline" className="text-xs font-mono">email</Badge>
+                    {selectedTemplate.dynamicFields.map((f, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs font-mono">{f.name}</Badge>
                     ))}
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={downloadSampleCSV}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Sample CSV
-                  </Button>
                 </div>
+                <Button type="button" variant="outline" size="sm" onClick={downloadSampleCSV} className="text-xs h-7">
+                  <Download className="h-3 w-3 mr-1.5" />
+                  Download Sample CSV
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* CSV Upload */}
+        {selectedTemplate && (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: "#9681FA" }}>
+                  2
+                </div>
+                <CardTitle className="text-base">Upload Recipient CSV</CardTitle>
+              </div>
+              <CardDescription className="ml-8">
+                Each row is one certificate. The file must include{" "}
+                <span className="font-mono text-xs bg-gray-100 px-1 rounded">email</span> and all required field columns.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Drop zone */}
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${csvFile ? "border-[#9681FA] bg-purple-50" : "border-gray-200 hover:border-[#9681FA] hover:bg-gray-50"
+                  }`}
+                onClick={() => fileInputRef.current?.click()}
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+              >
+                {csvFile ? (
+                  <div className="space-y-2">
+                    <FileText className="h-10 w-10 text-[#9681FA] mx-auto" />
+                    <p className="text-sm font-medium text-gray-800">{csvFile.name}</p>
+                    <p className="text-xs text-gray-400">{(csvFile.size / 1024).toFixed(1)} KB</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setCsvFile(null)
+                        setParsedRows([])
+                        setParseErrors([])
+                        previewBlobUrls.current.forEach((url) => URL.revokeObjectURL(url))
+                        previewBlobUrls.current.clear()
+                        if (fileInputRef.current) fileInputRef.current.value = ""
+                      }}
+                    >
+                      <X className="h-3 w-3 mr-1" /> Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Upload className="h-10 w-10 text-gray-300 mx-auto" />
+                    <p className="text-sm font-medium text-gray-600">Drop CSV here or click to browse</p>
+                    <p className="text-xs text-gray-400">CSV files only</p>
+                  </div>
+                )}
+                <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+              </div>
+
+              {/* Parse errors */}
+              {parseErrors.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <ul className="list-disc list-inside space-y-0.5">
+                      {parseErrors.map((e, i) => <li key={i}>{e}</li>)}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
               )}
             </CardContent>
           </Card>
+        )}
 
-          {/* CSV Upload */}
-          {selectedTemplate && (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Upload CSV File</CardTitle>
-                  <CardDescription>
-                    Upload a CSV file with recipient data. The file must include an "email" column
-                    and columns for each dynamic field.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* File Upload Area */}
-                    <div
-                      className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-[#9681FA] transition-colors"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {csvFile ? (
-                        <div className="space-y-2">
-                          <FileText className="h-12 w-12 text-[#9681FA] mx-auto" />
-                          <p className="text-sm font-medium">{csvFile.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {(csvFile.size / 1024).toFixed(2)} KB
-                          </p>
+        {/* Data Review Table */}
+        {parsedRows.length > 0 && selectedTemplate && (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: "#9681FA" }}>
+                    3
+                  </div>
+                  <CardTitle className="text-base">Review Recipients</CardTitle>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-1.5 text-gray-500">
+                    <Users className="h-3.5 w-3.5" />
+                    <span>{parsedRows.length} row{parsedRows.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  {errorRowCount > 0 && (
+                    <Badge variant="destructive" className="text-xs">
+                      {errorRowCount} error{errorRowCount !== 1 ? "s" : ""}
+                    </Badge>
+                  )}
+                  {validRowCount > 0 && (
+                    <Badge className="text-xs bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
+                      {validRowCount} valid
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <CardDescription className="ml-8">
+                Click <Eye className="inline h-3 w-3" /> on any row to preview how that certificate will look.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto rounded-lg border border-gray-100">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500 w-10">#</th>
+                      <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500">Email</th>
+                      {selectedTemplate.dynamicFields.map((f) => (
+                        <th key={f.name} className="text-left px-3 py-2.5 text-xs font-medium text-gray-500 capitalize">
+                          {f.name}
+                        </th>
+                      ))}
+                      <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500 w-24">Preview</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parsedRows.map((row) => (
+                      <tr
+                        key={row._rowIndex}
+                        className={`border-b border-gray-50 last:border-0 ${row._errors.length > 0 ? "bg-red-50" : "hover:bg-gray-50"
+                          }`}
+                      >
+                        <td className="px-3 py-2.5 text-gray-400 text-xs">{row._rowIndex + 1}</td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-1.5">
+                            {row._errors.length > 0 && (
+                              <>
+                                <AlertTriangle className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
+                                <p className="text-xs text-red-400 mt-0.5">{row._errors.join(" · ")}</p>
+                              </>
+                            )}
+                            <span className={`font-mono text-xs truncate max-w-[180px] md:max-w-[240px] ${row._errors.length > 0 ? "text-red-600" : "text-gray-700"}`}>
+                              {row.email || <span className="text-red-400 italic">missing</span>}
+                            </span>
+                          </div>
+                          {row._errors.length > 0 && (
+                            <p className="text-xs text-red-400 mt-0.5">{row._errors.join(" · ")}</p>
+                          )}
+                        </td>
+                        {selectedTemplate.dynamicFields.map((f) => (
+                          <td key={f.name} className="px-3 py-2.5 text-gray-600 text-xs max-w-[140px] truncate">
+                            {row.fieldData[f.name] || <span className="text-red-400 italic">empty</span>}
+                          </td>
+                        ))}
+                        <td className="px-3 py-2.5">
                           <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setCsvFile(null)
-                              if (fileInputRef.current) {
-                                fileInputRef.current.value = ""
-                              }
-                            }}
+                            className="h-7 text-xs text-[#9681FA] hover:text-[#7c68d4] hover:bg-purple-50"
+                            onClick={() => generateRowPreview(row)}
+                            disabled={generatingRowIndex === row._rowIndex}
                           >
-                            Remove File
+                            {generatingRowIndex === row._rowIndex ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : previewBlobUrls.current.has(row._rowIndex) ? (
+                              <>
+                                <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                                View
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                Preview
+                              </>
+                            )}
                           </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Upload className="h-12 w-12 text-gray-400 mx-auto" />
-                          <p className="text-sm text-gray-600">
-                            Click to upload CSV file or drag and drop
-                          </p>
-                          <p className="text-xs text-gray-500">CSV files only</p>
-                        </div>
-                      )}
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".csv"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-                    {/* CSV Format Instructions */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-medium text-blue-900 mb-2">CSV Format Requirements:</h4>
-                      <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                        <li>First row must contain column headers</li>
-                        <li>Must include an "email" column with recipient email addresses</li>
-                        <li>
-                          Must include columns for each dynamic field:{" "}
-                          {selectedTemplate.dynamicFields.map(f => f.name).join(", ")}
-                        </li>
-                        <li>Each row represents one certificate to be issued</li>
-                      </ul>
+        {/* Cost Summary & Submit */}
+        {parsedRows.length > 0 && selectedTemplate && (
+          <Card>
+            <CardContent className="pt-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium text-gray-700">Issuance Summary</p>
+                  <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                    <span>
+                      <strong className="text-gray-900">{validRowCount}</strong> certificate{validRowCount !== 1 ? "s" : ""} to issue
+                    </span>
+                    <span>
+                      Cost: <strong className="text-gray-900">{validRowCount}</strong> credit{validRowCount !== 1 ? "s" : ""}
+                    </span>
+                    <span className={hasInsufficientCredits ? "text-red-600" : "text-gray-600"}>
+                      Balance after: <strong>{creditBalance !== null ? creditBalance - validRowCount : "—"}</strong>
+                    </span>
+                  </div>
+                  {errorRowCount > 0 && (
+                    <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                      <Info className="h-3.5 w-3.5" />
+                      {errorRowCount} row{errorRowCount !== 1 ? "s" : ""} with errors will be skipped.
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3 flex-shrink-0">
+                  <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    style={{ backgroundColor: "#9681FA" }}
+                    disabled={isLoading || validRowCount === 0 || hasInsufficientCredits}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Starting…
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Issue {validRowCount} Certificate{validRowCount !== 1 ? "s" : ""}
+                        <span className="ml-2 text-xs opacity-80 font-normal">({validRowCount} credits)</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </form>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewState} onOpenChange={(open) => { if (!open) setPreviewState(null) }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Eye className="h-4 w-4 text-[#9681FA]" />
+              Certificate Preview
+              {previewState && (
+                <span className="text-sm font-normal text-gray-400">
+                  — Row {previewState.rowIndex + 1}: {parsedRows[previewState.rowIndex]?.email}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-2">
+            {previewState?.isLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-[#9681FA]" />
+                <p className="text-sm text-gray-400">Generating preview…</p>
+              </div>
+            ) : previewState?.imageUrl ? (
+              <div className="space-y-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewState.imageUrl}
+                  alt="Certificate preview"
+                  className="w-full rounded-lg border border-gray-100 shadow-sm"
+                />
+                <p className="text-xs text-center text-gray-400">
+                  Preview only — not yet issued or stored on blockchain.
+                </p>
+                {previewState && parsedRows[previewState.rowIndex] && (
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Field values</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <div className="flex gap-2 text-xs">
+                        <span className="text-gray-400 flex-shrink-0">email</span>
+                        <span className="font-mono text-gray-700 truncate">{parsedRows[previewState.rowIndex].email}</span>
+                      </div>
+                      {Object.entries(parsedRows[previewState.rowIndex].fieldData).map(([k, v]) => (
+                        <div key={k} className="flex gap-2 text-xs">
+                          <span className="text-gray-400 flex-shrink-0">{k}</span>
+                          <span className="font-mono text-gray-700 truncate">{v}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Credit Cost Preview */}
-              {csvFile && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Cost Preview</CardTitle>
-                    <CardDescription>
-                      Estimated credit cost for this bulk issuance
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm text-gray-600">Current Balance</p>
-                        <p className="text-2xl font-bold">{creditBalance ?? 0} credits</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600">Cost per Certificate</p>
-                        <p className="text-2xl font-bold">1 credit</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Submit Button */}
-              <div className="flex justify-end space-x-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                  disabled={isLoading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  style={{ backgroundColor: "#9681FA" }}
-                  disabled={isLoading || !csvFile || (creditBalance ?? 0) < 1}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Starting Bulk Issuance...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Start Bulk Issuance
-                    </>
-                  )}
-                </Button>
+                )}
               </div>
-            </>
-          )}
-        </form>
-      )}
-
-      {/* Return to Certificates Button */}
-      {bulkJob && (
-        <div className="flex justify-center">
-          <Link href="/issuer/certificates">
-            <Button style={{ backgroundColor: "#9681FA" }}>
-              View Certificates
-            </Button>
-          </Link>
-        </div>
-      )}
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
