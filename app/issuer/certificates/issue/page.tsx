@@ -194,8 +194,16 @@ export default function IssueCertificatePage() {
       toast({ title: "Missing certificate name", description: "Please enter a certificate name.", variant: "destructive" })
       return
     }
+    if (certificateName.trim().length > 32) {
+      toast({ title: "Certificate name too long", description: "Please enter a certificate name with less than 32 characters.", variant: "destructive" })
+      return
+    }
     if (!unitName.trim()) {
       toast({ title: "Missing unit name", description: "Please enter a unit name.", variant: "destructive" })
+      return
+    }
+    if (unitName.trim().length > 8) {
+      toast({ title: "Unit name too long", description: "Please enter a unit name with less than 8 characters.", variant: "destructive" })
       return
     }
     if (!description.trim()) {
@@ -223,7 +231,7 @@ export default function IssueCertificatePage() {
           fieldData,
           customProperties,
           certificateName: certificateName.trim(),
-          unitName: unitName.trim().toUpperCase().substring(0, 8),
+          unitName: unitName.trim(),
           description: description.trim(),
           sendEmail,
         }),
@@ -493,7 +501,7 @@ export default function IssueCertificatePage() {
                         id="unitName"
                         placeholder="e.g. CERT"
                         value={unitName}
-                        onChange={(e) => setUnitName(e.target.value.toUpperCase().substring(0, 8))}
+                        onChange={(e) => setUnitName(e.target.value)}
                         maxLength={8}
                         required
                       />

@@ -6,29 +6,11 @@
  */
 
 import { createCanvas, loadImage, Canvas, SKRSContext2D, GlobalFonts } from '@napi-rs/canvas';
-import { promises as fs, existsSync } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import prisma from '../prisma';
 import { DynamicField, CertificateTemplate } from '../types/certificate';
 import { TEMPLATES_PATH } from '../const';
-import { CERTIFICATE_FONTS } from '../certificateFonts';
-
-// Register custom fonts from public/fonts/ at module load time.
-// Missing font files are skipped gracefully — the canvas falls back to the system default.
-for (const font of CERTIFICATE_FONTS) {
-  if (!font.file) continue;
-  const fontPath = path.join(process.cwd(), 'public', 'fonts', font.file);
-  if (!existsSync(fontPath)) {
-    console.warn(`[ImageGenerator] Font file not found, skipping: ${font.file}`);
-    continue;
-  }
-  try {
-    GlobalFonts.registerFromPath(fontPath, font.name);
-    console.log(`[ImageGenerator] Registered font: ${font.name}`);
-  } catch (err) {
-    console.warn(`[ImageGenerator] Failed to register font ${font.name}:`, err);
-  }
-}
 
 /**
  * Loads a template from the database
