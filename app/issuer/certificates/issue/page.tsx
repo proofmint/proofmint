@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import {
   FileText,
   Loader2,
@@ -22,9 +23,12 @@ import {
   ArrowLeft,
   Info,
   RefreshCw,
+  Plus,
+  X,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import Link from "next/link"
 
 interface DynamicField {
   name: string
@@ -43,6 +47,11 @@ interface Template {
   dynamicFields: DynamicField[]
 }
 
+interface CustomProperty {
+  key: string
+  value: string
+}
+
 const STEPS = [
   { num: 1, label: "Select Template" },
   { num: 2, label: "Recipient" },
@@ -54,19 +63,24 @@ export default function IssueCertificatePage() {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
   const [recipientEmail, setRecipientEmail] = useState("")
   const [fieldData, setFieldData] = useState<Record<string, string>>({})
+  const [certificateName, setCertificateName] = useState("")
+  const [unitName, setUnitName] = useState("")
+  const [description, setDescription] = useState("")
+  const [sendEmail, setSendEmail] = useState(true)
+  const [customProperties, setCustomProperties] = useState<CustomProperty[]>([])
+  const [newProperty, setNewProperty] = useState({ key: "", value: "" })
   const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
-  const [issuedCertificate, setIssuedCertificate] = useState<{ id: string; assetId: string; generatedImageUrl: string } | null>(null)
+  const [issuedCertificate, setIssuedCertificate] = useState<{ id: string; assetId?: string; imageCid: string | null } | null>(null)
   const prevPreviewUrl = useRef<string | null>(null)
 
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
       if (prevPreviewUrl.current) URL.revokeObjectURL(prevPreviewUrl.current)
@@ -120,6 +134,29 @@ export default function IssueCertificatePage() {
     setFieldData((prev) => ({ ...prev, [fieldName]: value }))
   }
 
+  const addCustomProperty = () => {
+    if (!newProperty.key || !newProperty.value) return
+    const templateFieldNames = selectedTemplate?.dynamicFields.map((f) => f.name) ?? []
+    if (templateFieldNames.includes(newProperty.key)) {
+      toast({
+        title: "Key conflict",
+        description: `"${newProperty.key}" is already a template field name. Choose a different key.`,
+        variant: "destructive",
+      })
+      return
+    }
+    if (customProperties.some((p) => p.key === newProperty.key)) {
+      toast({ title: "Duplicate key", description: "A property with this key already exists.", variant: "destructive" })
+      return
+    }
+    setCustomProperties((prev) => [...prev, { ...newProperty }])
+    setNewProperty({ key: "", value: "" })
+  }
+
+  const removeCustomProperty = (index: number) => {
+    setCustomProperties((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const generatePreview = useCallback(async () => {
     if (!selectedTemplate) return
     setIsGeneratingPreview(true)
@@ -153,6 +190,18 @@ export default function IssueCertificatePage() {
       toast({ title: "Missing recipient email", description: "Please enter the recipient's email address.", variant: "destructive" })
       return
     }
+    if (!certificateName.trim()) {
+      toast({ title: "Missing certificate name", description: "Please enter a certificate name.", variant: "destructive" })
+      return
+    }
+    if (!unitName.trim()) {
+      toast({ title: "Missing unit name", description: "Please enter a unit name.", variant: "destructive" })
+      return
+    }
+    if (!description.trim()) {
+      toast({ title: "Missing description", description: "Please enter a description.", variant: "destructive" })
+      return
+    }
     const missingFields = selectedTemplate.dynamicFields.filter((f) => !fieldData[f.name])
     if (missingFields.length > 0) {
       toast({ title: "Missing field data", description: `Please fill in: ${missingFields.map((f) => f.name).join(", ")}`, variant: "destructive" })
@@ -168,7 +217,16 @@ export default function IssueCertificatePage() {
       const response = await fetch("/api/certificates/issue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId: selectedTemplate.id, recipientEmail, fieldData }),
+        body: JSON.stringify({
+          templateId: selectedTemplate.id,
+          recipientEmail,
+          fieldData,
+          customProperties,
+          certificateName: certificateName.trim(),
+          unitName: unitName.trim().toUpperCase().substring(0, 8),
+          description: description.trim(),
+          sendEmail,
+        }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to issue certificate")
@@ -183,7 +241,6 @@ export default function IssueCertificatePage() {
     }
   }
 
-  // Active step indicator
   const activeStep = !selectedTemplate ? 1 : !recipientEmail ? 2 : 3
 
   if (isLoadingTemplates) {
@@ -204,7 +261,6 @@ export default function IssueCertificatePage() {
     )
   }
 
-  // Success state
   if (issuedCertificate) {
     return (
       <div className="max-w-2xl mx-auto space-y-6 text-center py-12">
@@ -215,7 +271,7 @@ export default function IssueCertificatePage() {
         </div>
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Certificate Issued Successfully</h2>
-          <p className="text-gray-500 mt-2">The certificate has been minted on Algorand and sent to {recipientEmail}.</p>
+          <p className="text-gray-500 mt-2">The certificate has been minted on Algorand. The recipient can now claim it.</p>
         </div>
         <Card className="text-left">
           <CardContent className="pt-5 space-y-2">
@@ -239,6 +295,10 @@ export default function IssueCertificatePage() {
               setIssuedCertificate(null)
               setRecipientEmail("")
               setFieldData({})
+              setCertificateName("")
+              setUnitName("")
+              setDescription("")
+              setCustomProperties([])
               setPreviewUrl(null)
             }}
           >
@@ -265,7 +325,6 @@ export default function IssueCertificatePage() {
             Generate a blockchain-verified certificate and deliver it to a recipient.
           </p>
         </div>
-        {/* Credit Badge */}
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2">
           <CreditCard className="h-4 w-4 text-gray-400" />
           <span className="text-sm text-gray-500">Balance</span>
@@ -279,7 +338,6 @@ export default function IssueCertificatePage() {
         </div>
       </div>
 
-      {/* Insufficient credits alert */}
       {creditBalance !== null && creditBalance < 1 && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -319,7 +377,6 @@ export default function IssueCertificatePage() {
         ))}
       </div>
 
-      {/* Main layout */}
       <form onSubmit={handleIssueCertificate}>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
           {/* Left: Form */}
@@ -328,26 +385,16 @@ export default function IssueCertificatePage() {
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                    style={{ backgroundColor: "#9681FA" }}
-                  >
-                    1
-                  </div>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ backgroundColor: "#9681FA" }}>1</div>
                   <CardTitle className="text-base">Select Certificate Template</CardTitle>
                 </div>
-                <CardDescription className="ml-8">
-                  Choose the design and field layout for this certificate.
-                </CardDescription>
+                <CardDescription className="ml-8">Choose the design and field layout for this certificate.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {templates.length === 0 ? (
                   <div className="text-center py-6 text-gray-400 text-sm">
                     No templates found.{" "}
-                    <a href="/issuer/templates" className="underline text-[#9681FA]">
-                      Create a template
-                    </a>{" "}
-                    first.
+                    <Link href="/issuer/templates" className="underline text-[#9681FA]">Create a template</Link> first.
                   </div>
                 ) : (
                   <Select value={selectedTemplate?.id || ""} onValueChange={handleTemplateSelect}>
@@ -356,9 +403,7 @@ export default function IssueCertificatePage() {
                     </SelectTrigger>
                     <SelectContent>
                       {templates.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.templateName}
-                        </SelectItem>
+                        <SelectItem key={t.id} value={t.id}>{t.templateName}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -376,9 +421,7 @@ export default function IssueCertificatePage() {
                       <p className="text-xs text-gray-400 mb-1.5 uppercase tracking-wide font-medium">Dynamic Fields</p>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedTemplate.dynamicFields.map((f, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">
-                            {f.name}
-                          </Badge>
+                          <Badge key={i} variant="secondary" className="text-xs">{f.name}</Badge>
                         ))}
                       </div>
                     </div>
@@ -392,24 +435,16 @@ export default function IssueCertificatePage() {
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                      style={{ backgroundColor: "#9681FA" }}
-                    >
-                      2
-                    </div>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ backgroundColor: "#9681FA" }}>2</div>
                     <CardTitle className="text-base">Recipient Details</CardTitle>
                   </div>
-                  <CardDescription className="ml-8">
-                    The certificate will be emailed and minted to this address.
-                  </CardDescription>
+                  <CardDescription className="ml-8">The certificate will be minted for this recipient.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-1.5">
                     <Label htmlFor="recipientEmail" className="flex items-center gap-1.5">
                       <Mail className="h-3.5 w-3.5 text-gray-400" />
-                      Recipient Email
-                      <span className="text-red-500">*</span>
+                      Recipient Email <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="recipientEmail"
@@ -419,48 +454,138 @@ export default function IssueCertificatePage() {
                       onChange={(e) => setRecipientEmail(e.target.value)}
                       required
                     />
-                    <p className="text-xs text-gray-400">
-                      An email notification with the certificate will be sent to this address.
-                    </p>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Step 3: Certificate Fields */}
-            {selectedTemplate && selectedTemplate.dynamicFields.length > 0 && (
+            {/* Step 3: Certificate Details */}
+            {selectedTemplate && (
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                      style={{ backgroundColor: "#9681FA" }}
-                    >
-                      3
-                    </div>
-                    <CardTitle className="text-base">Certificate Content</CardTitle>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ backgroundColor: "#9681FA" }}>3</div>
+                    <CardTitle className="text-base">Certificate Details</CardTitle>
                   </div>
-                  <CardDescription className="ml-8">
-                    These values will be rendered onto the certificate image.
-                  </CardDescription>
+                  <CardDescription className="ml-8">Name, metadata, and dynamic field values for this certificate.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {selectedTemplate.dynamicFields.map((field, index) => (
-                      <div key={index} className="space-y-1.5">
-                        <Label htmlFor={field.name} className="capitalize">
-                          {field.name}
-                          <span className="text-red-500 ml-0.5">*</span>
-                        </Label>
-                        <Input
-                          id={field.name}
-                          placeholder={`Enter ${field.name.toLowerCase()}`}
-                          value={fieldData[field.name] || ""}
-                          onChange={(e) => updateFieldData(field.name, e.target.value)}
-                          required
-                        />
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="certificateName">
+                        Certificate Name <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="certificateName"
+                        placeholder="e.g. Certificate of Completion"
+                        value={certificateName}
+                        onChange={(e) => setCertificateName(e.target.value)}
+                        maxLength={32}
+                        required
+                      />
+                      <p className="text-xs text-gray-400">Max 32 characters</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="unitName">
+                        Unit Name <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="unitName"
+                        placeholder="e.g. CERT"
+                        value={unitName}
+                        onChange={(e) => setUnitName(e.target.value.toUpperCase().substring(0, 8))}
+                        maxLength={8}
+                        required
+                      />
+                      <p className="text-xs text-gray-400">Max 8 characters (Algorand NFT unit name)</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="description">
+                      Description <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="description"
+                      placeholder="e.g. Awarded for completing the Advanced React course"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {/* Dynamic fields */}
+                  {selectedTemplate.dynamicFields.length > 0 && (
+                    <div className="border-t border-gray-100 pt-4 space-y-4">
+                      <p className="text-sm font-medium text-gray-700">Template Fields</p>
+                      {selectedTemplate.dynamicFields.map((field, index) => (
+                        <div key={index} className="space-y-1.5">
+                          <Label htmlFor={field.name} className="capitalize">
+                            {field.name} <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id={field.name}
+                            placeholder={`Enter ${field.name.toLowerCase()}`}
+                            value={fieldData[field.name] || ""}
+                            onChange={(e) => updateFieldData(field.name, e.target.value)}
+                            required
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Custom Properties */}
+            {selectedTemplate && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Additional Properties</CardTitle>
+                  <CardDescription>Add custom metadata to this certificate (stored on IPFS). Keys cannot match template field names.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {customProperties.map((prop, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div>
+                        <span className="font-medium text-sm">{prop.key}:</span>
+                        <span className="ml-2 text-sm text-muted-foreground">{prop.value}</span>
                       </div>
-                    ))}
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeCustomProperty(index)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Property name (e.g., Grade)"
+                      value={newProperty.key}
+                      onChange={(e) => setNewProperty({ ...newProperty, key: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Property value (e.g., A+)"
+                      value={newProperty.value}
+                      onChange={(e) => setNewProperty({ ...newProperty, value: e.target.value })}
+                    />
+                  </div>
+                  <Button type="button" variant="outline" onClick={addCustomProperty} className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Property
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Send Email toggle */}
+            {selectedTemplate && (
+              <Card>
+                <CardContent className="pt-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Send email notification</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Notify the recipient by email after minting</p>
+                    </div>
+                    <Switch checked={sendEmail} onCheckedChange={setSendEmail} />
                   </div>
                 </CardContent>
               </Card>
@@ -478,7 +603,7 @@ export default function IssueCertificatePage() {
                     { icon: <Eye className="h-3 w-3" />, text: "Certificate image is generated from your template" },
                     { icon: <Upload className="h-3 w-3" />, text: "Image & metadata uploaded to IPFS (decentralized storage)" },
                     { icon: <Database className="h-3 w-3" />, text: "NFT minted on the Algorand blockchain" },
-                    { icon: <Mail className="h-3 w-3" />, text: "Recipient notified by email with their certificate" },
+                    { icon: <Mail className="h-3 w-3" />, text: "Recipient can claim the certificate from their dashboard" },
                   ].map((item, i) => (
                     <li key={i} className="flex items-center gap-2">
                       <span className="text-blue-400">{item.icon}</span>
@@ -501,16 +626,9 @@ export default function IssueCertificatePage() {
                   disabled={isLoading || (creditBalance ?? 0) < 1}
                 >
                   {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Issuing…
-                    </>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Issuing…</>
                   ) : (
-                    <>
-                      <FileText className="h-4 w-4 mr-2" />
-                      Issue Certificate
-                      <span className="ml-2 text-xs opacity-80 font-normal">(1 credit)</span>
-                    </>
+                    <><FileText className="h-4 w-4 mr-2" />Issue Certificate<span className="ml-2 text-xs opacity-80 font-normal">(1 credit)</span></>
                   )}
                 </Button>
               </div>
@@ -535,11 +653,7 @@ export default function IssueCertificatePage() {
                       disabled={isGeneratingPreview}
                       className="text-xs h-7"
                     >
-                      {isGeneratingPreview ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-3 w-3" />
-                      )}
+                      {isGeneratingPreview ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                       <span className="ml-1">{previewUrl ? "Refresh" : "Generate"}</span>
                     </Button>
                   )}
@@ -561,14 +675,8 @@ export default function IssueCertificatePage() {
                 ) : previewUrl ? (
                   <div className="space-y-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={previewUrl}
-                      alt="Certificate preview"
-                      className="w-full rounded-lg border border-gray-100 shadow-sm"
-                    />
-                    <p className="text-xs text-center text-gray-400">
-                      Preview only — not yet issued or stored on blockchain.
-                    </p>
+                    <img src={previewUrl} alt="Certificate preview" className="w-full rounded-lg border border-gray-100 shadow-sm" />
+                    <p className="text-xs text-center text-gray-400">Preview only — not yet issued or stored on blockchain.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
@@ -579,8 +687,7 @@ export default function IssueCertificatePage() {
                       <p className="text-sm font-medium text-gray-700">Generate a preview</p>
                       <p className="text-xs text-gray-400 mt-1">
                         Fill in the fields above, then click{" "}
-                        <span className="font-medium text-[#9681FA]">Generate</span> to see how your
-                        certificate will look.
+                        <span className="font-medium text-[#9681FA]">Generate</span> to see how your certificate will look.
                       </p>
                     </div>
                     <Button
@@ -599,7 +706,6 @@ export default function IssueCertificatePage() {
               </CardContent>
             </Card>
 
-            {/* Cost summary */}
             {selectedTemplate && (
               <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-2">
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Issuance Cost</p>

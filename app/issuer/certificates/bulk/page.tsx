@@ -14,6 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import {
   Upload,
   Loader2,
@@ -29,6 +31,7 @@ import {
   Info,
   RefreshCw,
   AlertTriangle,
+  Plus,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -59,6 +62,11 @@ interface CSVRow {
   _errors: string[]
 }
 
+interface CustomProperty {
+  key: string
+  value: string
+}
+
 interface PreviewState {
   rowIndex: number
   imageUrl: string | null
@@ -71,6 +79,12 @@ export default function BulkIssueCertificatePage() {
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [parsedRows, setParsedRows] = useState<CSVRow[]>([])
   const [parseErrors, setParseErrors] = useState<string[]>([])
+  const [certificateName, setCertificateName] = useState("")
+  const [unitName, setUnitName] = useState("")
+  const [description, setDescription] = useState("")
+  const [sendEmail, setSendEmail] = useState(true)
+  const [customProperties, setCustomProperties] = useState<CustomProperty[]>([])
+  const [newProperty, setNewProperty] = useState({ key: "", value: "" })
   const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
@@ -133,6 +147,25 @@ export default function BulkIssueCertificatePage() {
       setParsedRows([])
       setParseErrors([])
     }
+  }
+
+  const addCustomProperty = () => {
+    if (!newProperty.key || !newProperty.value) return
+    const templateFieldNames = selectedTemplate?.dynamicFields.map((f) => f.name) ?? []
+    if (templateFieldNames.includes(newProperty.key)) {
+      toast({ title: "Key conflict", description: `"${newProperty.key}" is a template field name.`, variant: "destructive" })
+      return
+    }
+    if (customProperties.some((p) => p.key === newProperty.key)) {
+      toast({ title: "Duplicate key", description: "A property with this key already exists.", variant: "destructive" })
+      return
+    }
+    setCustomProperties((prev) => [...prev, { ...newProperty }])
+    setNewProperty({ key: "", value: "" })
+  }
+
+  const removeCustomProperty = (index: number) => {
+    setCustomProperties((prev) => prev.filter((_, i) => i !== index))
   }
 
   const parseCSVFile = (file: File, template: Template) => {
@@ -301,6 +334,18 @@ export default function BulkIssueCertificatePage() {
       toast({ title: "No valid rows", description: "Fix CSV errors before issuing.", variant: "destructive" })
       return
     }
+    if (!certificateName.trim()) {
+      toast({ title: "Missing certificate name", description: "Please enter a certificate name.", variant: "destructive" })
+      return
+    }
+    if (!unitName.trim()) {
+      toast({ title: "Missing unit name", description: "Please enter a unit name.", variant: "destructive" })
+      return
+    }
+    if (!description.trim()) {
+      toast({ title: "Missing description", description: "Please enter a description.", variant: "destructive" })
+      return
+    }
     if ((creditBalance ?? 0) < validRows.length) {
       toast({ title: "Insufficient credits", description: `You need ${validRows.length} credits but have ${creditBalance}.`, variant: "destructive" })
       return
@@ -311,6 +356,11 @@ export default function BulkIssueCertificatePage() {
       const formData = new FormData()
       formData.append("templateId", selectedTemplate.id)
       formData.append("csvFile", csvFile)
+      formData.append("certificateName", certificateName.trim())
+      formData.append("unitName", unitName.trim().toUpperCase().substring(0, 8))
+      formData.append("description", description.trim())
+      formData.append("sendEmail", sendEmail ? "true" : "false")
+      formData.append("customProperties", JSON.stringify(customProperties))
 
       const response = await fetch("/api/certificates/bulk", { method: "POST", body: formData })
       const data = await response.json()
@@ -371,7 +421,7 @@ export default function BulkIssueCertificatePage() {
           </CardContent>
         </Card>
         <div className="flex gap-3 justify-center">
-          <Link href="/issuer/certificates/bulk/jobs">
+          <Link href={`/issuer/certificates/bulk/jobs/${bulkJob.id}`}>
             <Button variant="outline">Track Job Progress</Button>
           </Link>
           <Link href="/issuer/certificates">
@@ -482,13 +532,118 @@ export default function BulkIssueCertificatePage() {
           </CardContent>
         </Card>
 
+        {/* Certificate Details */}
+        {selectedTemplate && (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: "#9681FA" }}>2</div>
+                <CardTitle className="text-base">Certificate Details</CardTitle>
+              </div>
+              <CardDescription className="ml-8">These details apply to all certificates in this batch.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="certificateName">Certificate Name <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="certificateName"
+                    placeholder="e.g. Certificate of Completion"
+                    value={certificateName}
+                    onChange={(e) => setCertificateName(e.target.value)}
+                    maxLength={32}
+                    required
+                  />
+                  <p className="text-xs text-gray-400">Max 32 characters</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="unitName">Unit Name <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="unitName"
+                    placeholder="e.g. CERT"
+                    value={unitName}
+                    onChange={(e) => setUnitName(e.target.value.toUpperCase().substring(0, 8))}
+                    maxLength={8}
+                    required
+                  />
+                  <p className="text-xs text-gray-400">Max 8 characters</p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="description">Description <span className="text-red-500">*</span></Label>
+                <Input
+                  id="description"
+                  placeholder="e.g. Awarded for completing the Advanced React course"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  required
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Custom Properties */}
+        {selectedTemplate && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Additional Properties</CardTitle>
+              <CardDescription>Custom metadata applied to all certificates in this batch. Keys cannot match template field names.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {customProperties.map((prop, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div>
+                    <span className="font-medium text-sm">{prop.key}:</span>
+                    <span className="ml-2 text-sm text-muted-foreground">{prop.value}</span>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removeCustomProperty(index)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Property name (e.g., Grade)"
+                  value={newProperty.key}
+                  onChange={(e) => setNewProperty({ ...newProperty, key: e.target.value })}
+                />
+                <Input
+                  placeholder="Property value (e.g., A+)"
+                  value={newProperty.value}
+                  onChange={(e) => setNewProperty({ ...newProperty, value: e.target.value })}
+                />
+              </div>
+              <Button type="button" variant="outline" onClick={addCustomProperty} className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Property
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Send Email Toggle */}
+        {selectedTemplate && (
+          <Card>
+            <CardContent className="pt-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Send email notifications</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Notify each recipient by email after their certificate is minted</p>
+                </div>
+                <Switch checked={sendEmail} onCheckedChange={setSendEmail} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* CSV Upload */}
         {selectedTemplate && (
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: "#9681FA" }}>
-                  2
+                  3
                 </div>
                 <CardTitle className="text-base">Upload Recipient CSV</CardTitle>
               </div>
@@ -561,7 +716,7 @@ export default function BulkIssueCertificatePage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: "#9681FA" }}>
-                    3
+                    4
                   </div>
                   <CardTitle className="text-base">Review Recipients</CardTitle>
                 </div>

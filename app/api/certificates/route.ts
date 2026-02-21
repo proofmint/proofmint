@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
-import { JWT_SECRET, ALGORAND_NETWORK } from "@/lib/const";
+import { JWT_SECRET, ALGORAND_NETWORK, PINATA_GATEWAY } from "@/lib/const";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -14,45 +14,62 @@ export async function GET(req: NextRequest) {
   try {
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
-    const issuerId = (payload as any).issuerId as string | undefined;
-    const userEmail = (payload as any).email as string;
+    const issuerId = (payload as Record<string, unknown>).issuerId as string | undefined;
+    const userEmail = (payload as Record<string, unknown>).email as string;
 
     if (issuerId) {
-      const certificates = await prisma.issuedCertificate.findMany({
-        where: { issuerId: issuerId },
-        orderBy: { issuedAt: "desc" },
-        include: {
-          template: true,
-        },
-      });
+      // Issuer: return single certificates and bulk jobs separately
+      const [singleCertificates, bulkJobs] = await Promise.all([
+        prisma.issuedCertificate.findMany({
+          where: { issuerId, jobId: null },
+          orderBy: { issuedAt: "desc" },
+          include: { template: true },
+        }),
+        prisma.bulkIssuanceJob.findMany({
+          where: { issuerId },
+          orderBy: { createdAt: "desc" },
+          include: {
+            template: true,
+            _count: { select: { issuedCertificates: true } },
+          },
+        }),
+      ]);
 
-      const recipients = certificates.map(
-        (certificate) => certificate.receiverEmail
-      );
-
+      const recipientEmails = singleCertificates.map((c) => c.receiverEmail);
       const receivers = await prisma.user.findMany({
-        where: { email: { in: recipients } },
+        where: { email: { in: recipientEmails } },
         select: { email: true, fullName: true },
       });
 
-      return NextResponse.json({ certificates, receivers });
+      const enrichedSingle = singleCertificates.map((cert) => ({
+        ...cert,
+        imageUrl: cert.imageCid ? `${PINATA_GATEWAY}${cert.imageCid}` : null,
+      }));
+
+      return NextResponse.json({ singleCertificates: enrichedSingle, bulkJobs, receivers });
     } else {
+      // Receiver: only show minted certificates
       const certificates = await prisma.issuedCertificate.findMany({
-        where: { receiverEmail: userEmail },
+        where: {
+          receiverEmail: userEmail,
+          mintingStatus: "MINTED",
+        },
         orderBy: { issuedAt: "desc" },
         include: {
-          template: true, // Include the badge details
-          issuer: true, // Include the issuer details
+          template: true,
+          issuer: { include: { user: true } },
         },
       });
 
-      return NextResponse.json({ certificates, network: ALGORAND_NETWORK });
+      const enrichedCertificates = certificates.map((cert) => ({
+        ...cert,
+        imageUrl: cert.imageCid ? `${PINATA_GATEWAY}${cert.imageCid}` : null,
+      }));
+
+      return NextResponse.json({ certificates: enrichedCertificates, network: ALGORAND_NETWORK });
     }
   } catch (error) {
     console.error("Failed to fetch certificates:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

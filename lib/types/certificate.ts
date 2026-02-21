@@ -24,6 +24,8 @@ export interface DynamicField {
   fontSize: number;
   /** Font family name (e.g., "Arial", "Times New Roman") */
   fontFamily: string;
+  /** Font weight (e.g., "normal", "bold", "lighter") */
+  fontWeight?: string;
   /** Text color in hex format (#RRGGBB) */
   color: string;
   /** Optional maximum width for text wrapping (pixels) */
@@ -97,9 +99,11 @@ export interface SingleIssuanceResponse {
   success: boolean;
   certificate?: {
     id: string;
-    assetId: string;
-    generatedImageUrl: string;
+    assetId?: string;
+    imageCid: string | null;
+    mintingStatus: string;
     status: string;
+    mintTransactionHash?: string | null;
   };
   error?: string;
 }
@@ -136,6 +140,8 @@ export interface IPFSUploadResult {
 export interface CertificateMetadata {
   /** Asset name */
   name: string;
+  /** Unit name */
+  unit_name: string;
   /** Asset description */
   description: string;
   /** IPFS image URL with #arc3 suffix */
@@ -187,17 +193,24 @@ export interface CertificateTask {
  */
 export interface IssuedCertificate {
   id: string;
-  assetId: string;
+  assetId?: string | null;
   templateId: string;
   receiverEmail: string;
   issuerId: string;
   jobId?: string;
-  fieldData: Record<string, string>;
-  generatedImageUrl: string;
+  certificateName: string;
+  unitName: string;
+  description: string;
+  properties: Record<string, string>;
+  imageCid?: string | null;
+  metadataCid?: string | null;
+  mintingStatus: 'PENDING' | 'MINTED' | 'FAILED';
   status: 'PENDING' | 'CLAIMED' | 'REJECTED';
+  errorMessage?: string | null;
   issuedAt: Date;
   claimedAt?: Date;
-  transactionHash?: string;
+  mintTransactionHash?: string | null;
+  claimTransactionHash?: string | null;
 }
 
 /**

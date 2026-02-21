@@ -1,6 +1,7 @@
 import { PINATA_GATEWAY } from '../const';
 import { uploadToPinata, uploadJsonToPinata } from '../pinata';
 import crypto from 'crypto';
+import { IPFSUploadResult, CertificateMetadata } from '../types/certificate';
 
 /**
  * IPFS Storage Service
@@ -8,21 +9,6 @@ import crypto from 'crypto';
  * Handles uploading certificate images and metadata to IPFS via Pinata.
  * Implements ARC3 standard for Algorand NFT metadata.
  */
-
-export interface IPFSUploadResult {
-  IpfsHash: string;
-  PinSize: number;
-  Timestamp: string;
-}
-
-export interface CertificateMetadata {
-  name: string;
-  description: string;
-  image: string; // ipfs://hash#arc3
-  image_integrity: string; // sha256-hash
-  image_mimetype: string;
-  properties: Record<string, string>;
-}
 
 /**
  * Upload an image buffer to IPFS via Pinata
@@ -127,6 +113,7 @@ export function formatARC3ImageUri(ipfsHash: string): string {
 export async function uploadCertificateWithMetadata(
   imageBuffer: Buffer,
   certificateName: string,
+  unitName: string,
   description: string,
   properties: Record<string, string>
 ): Promise<{
@@ -147,6 +134,7 @@ export async function uploadCertificateWithMetadata(
     // Step 3: Create metadata with ARC3-formatted image URI
     const metadata: CertificateMetadata = {
       name: certificateName,
+      unit_name: unitName,
       description: description,
       image: formatARC3ImageUri(imageResult.IpfsHash),
       image_integrity: imageIntegrity,

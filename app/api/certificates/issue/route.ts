@@ -10,103 +10,174 @@ import { sendCertificateEmail } from "@/lib/services/emailNotification";
 
 /**
  * POST /api/certificates/issue
- * 
+ *
  * Single certificate issuance endpoint
- * 
- * Requirements: 1.1, 10.1, 10.3
  */
 export async function POST(req: NextRequest) {
-  // Authenticate issuer
   const auth = await requireIssuer(req);
   if ("error" in auth) {
     return auth.error;
   }
 
   const { payload } = auth;
-  const issuerId = payload.issuerId!;
+  const issuerId = payload.issuerId as string;
 
   try {
-    // Parse request body
     const body = await req.json();
-    const { templateId, recipientEmail, fieldData } = body;
+    const {
+      templateId,
+      recipientEmail,
+      fieldData,
+      customProperties,
+      certificateName,
+      unitName,
+      description,
+      sendEmail,
+    } = body;
 
-    // Validate required fields
     if (!templateId || typeof templateId !== "string") {
       return NextResponse.json(
-        { error: "Template ID is required. Please provide a valid template ID." },
+        { error: "Template ID is required." },
         { status: 400 }
       );
     }
 
     if (!recipientEmail || typeof recipientEmail !== "string") {
       return NextResponse.json(
-        { error: "Recipient email is required. Please provide a valid email address." },
+        { error: "Recipient email is required." },
         { status: 400 }
       );
     }
 
     if (!fieldData || typeof fieldData !== "object") {
       return NextResponse.json(
-        { error: "Field data is required. Please provide certificate field values as an object." },
+        { error: "Field data is required." },
         { status: 400 }
       );
     }
 
-    // Validate recipient email format
+    if (!certificateName || typeof certificateName !== "string") {
+      return NextResponse.json(
+        { error: "Certificate name is required." },
+        { status: 400 }
+      );
+    }
+
+    if (certificateName.length > 32) {
+      return NextResponse.json(
+        { error: "Certificate name must be less than 32 characters." },
+        { status: 400 }
+      );
+    }
+
+    if (!unitName || typeof unitName !== "string") {
+      return NextResponse.json(
+        { error: "Unit name is required." },
+        { status: 400 }
+      );
+    }
+    if (unitName.length > 8) {
+      return NextResponse.json(
+        { error: "Unit name must be less than 8 characters." },
+        { status: 400 }
+      );
+    }
+
+    if (!description || typeof description !== "string") {
+      return NextResponse.json(
+        { error: "Description is required." },
+        { status: 400 }
+      );
+    }
+
     if (!isValidEmail(recipientEmail)) {
       return NextResponse.json(
-        { error: "Invalid email format. Please provide a valid email address (e.g., user@example.com)." },
+        { error: "Invalid email format." },
         { status: 400 }
       );
     }
 
-    // Validate template exists and belongs to issuer
     const template = await prisma.certificateTemplate.findUnique({
       where: { id: templateId },
     });
 
     if (!template) {
       return NextResponse.json(
-        { error: "Template not found. Please verify the template ID and try again." },
+        { error: "Template not found." },
         { status: 404 }
       );
     }
 
     if (template.issuerId !== issuerId) {
       return NextResponse.json(
-        { error: "Access denied. This template belongs to another issuer." },
+        { error: "Access denied." },
         { status: 403 }
       );
     }
 
-    // Validate field data matches template fields
-    const dynamicFields = template.dynamicFields as any[];
+    const dynamicFields = template.dynamicFields as Array<{ name: string }>;
     const templateFieldNames = dynamicFields.map((f) => f.name);
     const providedFieldNames = Object.keys(fieldData);
 
-    // Check if all template fields are provided
     for (const fieldName of templateFieldNames) {
       if (!providedFieldNames.includes(fieldName)) {
         return NextResponse.json(
-          { 
-            error: `Missing required field: "${fieldName}". Please provide values for all template fields.`,
+          {
+            error: `Missing required field: "${fieldName}".`,
             requiredFields: templateFieldNames,
-            providedFields: providedFieldNames
+            providedFields: providedFieldNames,
           },
+          { status: 400 }
+        );
+      }
+      const fieldValue = (fieldData as Record<string, string>)[fieldName];
+      if (!fieldValue || fieldValue.trim() === "") {
+        return NextResponse.json(
+          { error: `Field "${fieldName}" must not be empty.` },
           { status: 400 }
         );
       }
     }
 
-    // Validate and deduct credits (1 credit for single issuance)
+    // Validate and merge custom properties (no key conflicts with template fields)
+    const safeCustomProps: Array<{ key: string; value: string }> = [];
+    if (customProperties && Array.isArray(customProperties)) {
+      for (const prop of customProperties) {
+        if (!prop.key || prop.key.trim() === "") {
+          return NextResponse.json(
+            { error: "Custom property keys must not be empty." },
+            { status: 400 }
+          );
+        }
+        if (!prop.value || prop.value.trim() === "") {
+          return NextResponse.json(
+            { error: `Custom property "${prop.key}" must have a value.` },
+            { status: 400 }
+          );
+        }
+        if (templateFieldNames.includes(prop.key)) {
+          return NextResponse.json(
+            { error: `Custom property key "${prop.key}" conflicts with a template field name.` },
+            { status: 400 }
+          );
+        }
+        safeCustomProps.push({ key: String(prop.key), value: String(prop.value) });
+      }
+    }
+
+    // Merge fieldData and custom properties into a single properties object
+    const mergedProperties: Record<string, string> = { ...fieldData };
+    for (const prop of safeCustomProps) {
+      mergedProperties[prop.key] = prop.value;
+    }
+
     const creditValidation = await validateCredits(issuerId, 1);
     if (!creditValidation.valid) {
       return NextResponse.json(
-        { 
-          error: creditValidation.error || "Insufficient credits to issue certificate.",
+        {
+          error: creditValidation.error || "Insufficient credits.",
           required: 1,
           available: creditValidation.currentBalance,
-          suggestion: "Please purchase more credits to continue issuing certificates."
         },
         { status: 400 }
       );
@@ -115,40 +186,36 @@ export async function POST(req: NextRequest) {
     const creditDeduction = await deductCredits(issuerId, 1);
     if (!creditDeduction.success) {
       return NextResponse.json(
-        { 
-          error: "Failed to process credit payment. Please try again or contact support if the issue persists.",
-          details: creditDeduction.error
-        },
+        { error: "Failed to process credit payment.", details: creditDeduction.error },
         { status: 500 }
       );
     }
 
-    // Create IssuedCertificate record with status PENDING
     let certificate = await prisma.issuedCertificate.create({
       data: {
-        assetId: "", // Will be updated after minting
         templateId,
         receiverEmail: recipientEmail,
         issuerId,
-        fieldData,
-        generatedImageUrl: "", // Will be updated after IPFS upload
+        certificateName,
+        unitName,
+        description,
+        properties: mergedProperties,
+        mintingStatus: "PENDING",
         status: "PENDING",
       },
     });
 
     try {
-      // Generate certificate image
       const imageBuffer = await generateCertificate(templateId, fieldData);
 
-      // Upload image and metadata to IPFS
       const { imageHash, metadataHash, imageUrl } = await uploadCertificateWithMetadata(
         imageBuffer,
-        template.templateName,
-        template.templateDescription,
-        fieldData
+        certificateName,
+        unitName,
+        description,
+        mergedProperties
       );
 
-      // Get issuer details for minting
       const issuer = await prisma.issuer.findUnique({
         where: { id: issuerId },
         include: { user: true },
@@ -158,97 +225,98 @@ export async function POST(req: NextRequest) {
         throw new Error("Issuer not found");
       }
 
-      // Mint NFT on Algorand
       const metadataUrl = `ipfs://${metadataHash}#arc3`;
       const mintResult = await blockchainMintingService.mintCertificate({
         issuerAddress: issuer.user.walletAddress,
         issuerEmail: issuer.user.email,
-        certificateName: template.templateName,
-        unitName: template.templateName.substring(0, 8).toUpperCase(),
+        certificateName,
+        unitName,
         metadataUrl,
         recipientEmail,
       });
 
-      // Update certificate status to CLAIMED (representing minted)
+      // Update certificate: minting succeeded, status stays PENDING for recipient to claim
       certificate = await prisma.issuedCertificate.update({
         where: { id: certificate.id },
         data: {
           assetId: mintResult.assetId,
-          generatedImageUrl: imageUrl,
-          status: "CLAIMED",
-          transactionHash: mintResult.transactionId,
-          claimedAt: new Date(),
+          imageCid: imageHash,
+          metadataCid: metadataHash,
+          mintingStatus: "MINTED",
+          status: "PENDING",
+          mintTransactionHash: mintResult.transactionId,
         },
       });
 
-      // Send email notification (failures are logged but don't fail issuance)
-      await sendCertificateEmail({
-        recipientEmail,
-        recipientName: fieldData.recipientName || fieldData.name || "Recipient",
-        certificateName: template.templateName,
-        assetId: mintResult.assetId,
-        imageUrl,
-      });
+      // Send email — failure here does NOT mark certificate as failed
+      if (sendEmail !== false) {
+        try {
+          await sendCertificateEmail({
+            recipientEmail,
+            recipientName: (fieldData as Record<string, string>).recipientName
+              || (fieldData as Record<string, string>).name
+              || "Recipient",
+            issuerName: issuer.user.organizationName,
+            certificateName,
+            certificateId: certificate.id,
+            assetId: mintResult.assetId,
+            imageUrl: `${process.env.PINATA_GATEWAY}${imageHash}`,
+          });
+        } catch (emailError) {
+          console.error("[Issue] Email notification failed (non-fatal):", emailError);
+        }
+      }
 
-      // Return certificate details
       return NextResponse.json(
         {
           success: true,
           certificate: {
             id: certificate.id,
             assetId: certificate.assetId,
-            generatedImageUrl: certificate.generatedImageUrl,
+            imageCid: certificate.imageCid,
+            mintingStatus: certificate.mintingStatus,
             status: certificate.status,
-            transactionHash: certificate.transactionHash,
+            mintTransactionHash: certificate.mintTransactionHash,
           },
         },
         { status: 200 }
       );
     } catch (error) {
-      // Error handling and rollback
-      console.error("Certificate issuance failed:", error);
+      console.error("Certificate minting failed:", error);
 
-      // Refund credits
       await refundCredits(issuerId, 1);
 
-      // Update certificate status to REJECTED
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
       await prisma.issuedCertificate.update({
         where: { id: certificate.id },
         data: {
-          status: "REJECTED",
+          mintingStatus: "FAILED",
+          errorMessage,
         },
       });
 
-      // Return user-friendly error response
-      let userMessage = "Certificate issuance failed. Your credit has been refunded.";
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      
-      if (errorMessage.includes("Template not found")) {
-        userMessage = "The certificate template could not be found. Please verify the template exists.";
-      } else if (errorMessage.includes("Failed to load background image")) {
-        userMessage = "Failed to load the template background image. Please check the template configuration.";
+      let userMessage = "Certificate minting failed. Your credit has been refunded.";
+      if (errorMessage.includes("Failed to load background image")) {
+        userMessage = "Failed to load the template background image.";
       } else if (errorMessage.includes("Failed to upload")) {
-        userMessage = "Failed to upload certificate to storage. Please check your internet connection and try again.";
+        userMessage = "Failed to upload certificate to storage.";
       } else if (errorMessage.includes("Failed to mint")) {
-        userMessage = "Failed to mint certificate on blockchain. Please try again or contact support.";
+        userMessage = "Failed to mint certificate on blockchain.";
       }
-      
+
       return NextResponse.json(
-        { 
+        {
           error: userMessage,
-          suggestion: "Your credit has been automatically refunded. Please try again or contact support if the issue persists."
+          suggestion: "Your credit has been automatically refunded.",
         },
         { status: 500 }
       );
     }
   } catch (error) {
     console.error("Error in certificate issuance endpoint:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { 
-        error: "An unexpected error occurred while processing your request. Please try again.",
-        suggestion: "If the problem persists, please contact support with the error details."
-      },
+      { error: "An unexpected error occurred. Please try again." },
       { status: 500 }
     );
   }

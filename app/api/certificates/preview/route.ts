@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     const imageBuffer = await generateCertificate(templateId, safeFieldData);
 
-    return new NextResponse(imageBuffer, {
+    return new NextResponse(new Uint8Array(imageBuffer), {
       status: 200,
       headers: {
         "Content-Type": "image/png",

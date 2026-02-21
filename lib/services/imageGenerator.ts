@@ -5,12 +5,30 @@
  * using server-side canvas rendering with @napi-rs/canvas.
  */
 
-import { createCanvas, loadImage, Canvas, SKRSContext2D } from '@napi-rs/canvas';
-import { promises as fs } from 'fs';
+import { createCanvas, loadImage, Canvas, SKRSContext2D, GlobalFonts } from '@napi-rs/canvas';
+import { promises as fs, existsSync } from 'fs';
 import path from 'path';
 import prisma from '../prisma';
 import { DynamicField, CertificateTemplate } from '../types/certificate';
 import { TEMPLATES_PATH } from '../const';
+import { CERTIFICATE_FONTS } from '../certificateFonts';
+
+// Register custom fonts from public/fonts/ at module load time.
+// Missing font files are skipped gracefully — the canvas falls back to the system default.
+for (const font of CERTIFICATE_FONTS) {
+  if (!font.file) continue;
+  const fontPath = path.join(process.cwd(), 'public', 'fonts', font.file);
+  if (!existsSync(fontPath)) {
+    console.warn(`[ImageGenerator] Font file not found, skipping: ${font.file}`);
+    continue;
+  }
+  try {
+    GlobalFonts.registerFromPath(fontPath, font.name);
+    console.log(`[ImageGenerator] Registered font: ${font.name}`);
+  } catch (err) {
+    console.warn(`[ImageGenerator] Failed to register font ${font.name}:`, err);
+  }
+}
 
 /**
  * Loads a template from the database
@@ -95,7 +113,8 @@ function renderTextField(
 ): void {
   // Set initial font properties
   let fontSize = field.fontSize;
-  ctx.font = `${fontSize}px ${field.fontFamily}`;
+  const fontWeight = field.fontWeight || 'normal';
+  ctx.font = `${fontWeight} ${fontSize}px ${field.fontFamily}`;
   ctx.fillStyle = field.color;
   ctx.textAlign = (field.align || 'left') as CanvasTextAlign;
 
@@ -117,7 +136,7 @@ function renderTextField(
       fontSize = fontSize * scaleFactor;
       
       // Update font with scaled size
-      ctx.font = `${fontSize}px ${field.fontFamily}`;
+      ctx.font = `${fontWeight} ${fontSize}px ${field.fontFamily}`;
       
       // Recalculate line height with scaled font
       const scaledLineHeight = fontSize * 1.2;

@@ -6,7 +6,9 @@ import {
   EMAIL_SERVER_PORT,
   EMAIL_SERVER_USER,
   APPLICATION_HOST,
+  ALGORAND_NETWORK,
 } from "../const";
+import prisma from "../prisma";
 
 const transporter = nodemailer.createTransport({
   host: EMAIL_SERVER_HOST,
@@ -18,43 +20,26 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-/**
- * Email Notification Service
- * 
- * Handles sending certificate issuance notifications to recipients.
- * Email failures are handled gracefully and do not fail the certificate issuance.
- * 
- * Requirements: 1.8, 9.1, 9.2, 9.3, 9.4
- */
-
 export interface CertificateEmailData {
   recipientEmail: string;
+  /** Fallback name used if recipient is not found in the users table */
   recipientName: string;
+  issuerName: string;
   certificateName: string;
+  certificateId: string;
   assetId: string;
   imageUrl: string;
 }
 
-/**
- * Send certificate issuance notification email to recipient
- * 
- * @param data - Certificate email data including recipient info and certificate details
- * @returns Promise that resolves when email is sent (or fails gracefully)
- * 
- * Requirements:
- * - 1.8: Send email notification when certificate is minted
- * - 9.1: Prepare email notification with certificate details
- * - 9.2: Include recipient name, certificate details, and asset ID
- * - 9.3: Send email to recipient's email address
- * - 9.4: Log error but don't fail issuance if email fails
- */
 export async function sendCertificateEmail(
   data: CertificateEmailData
 ): Promise<void> {
   const {
     recipientEmail,
     recipientName,
+    issuerName,
     certificateName,
+    certificateId,
     assetId,
     imageUrl,
   } = data;
@@ -62,45 +47,72 @@ export async function sendCertificateEmail(
   console.log(`[EmailNotification] Attempting to send certificate email to ${recipientEmail} for asset ${assetId}`);
 
   try {
-    // Construct certificate view URL
-    const certificateUrl = `${APPLICATION_HOST}/certificates/${assetId}`;
+    // Look up recipient's name from the users table; fall back to passed name
+    const recipientUser = await prisma.user.findUnique({
+      where: { email: recipientEmail },
+      select: { fullName: true },
+    });
+    const displayName = recipientUser?.fullName || recipientName;
 
-    // Prepare email content
+    const network = ALGORAND_NETWORK.toLowerCase();
+    const assetExplorerUrl = `https://lora.algokit.io/${network}/asset/${assetId}`;
+    const sharePageUrl = `${APPLICATION_HOST}/share/certificate/${certificateId}`;
+    const claimPageUrl = `${APPLICATION_HOST}/receiver/certificates`;
+
     const subject = `You've received a certificate: ${certificateName}`;
     const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">Congratulations, ${recipientName}!</h2>
-        
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2 style="color: #9681FA;">Congratulations, ${displayName}!</h2>
+
         <p style="font-size: 16px; color: #555;">
-          You have been awarded a certificate: <strong>${certificateName}</strong>
+          <strong>${issuerName}</strong> has awarded you a certificate:
+          <strong>${certificateName}</strong>
         </p>
-        
+
         <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <img src="${imageUrl}" alt="${certificateName}" style="max-width: 100%; height: auto; border-radius: 4px;" />
         </div>
-        
-        <div style="background-color: #e8f4f8; padding: 15px; border-radius: 4px; margin: 20px 0;">
-          <p style="margin: 0; font-size: 14px; color: #333;">
-            <strong>Asset ID:</strong> ${assetId}
+
+        <div style="background-color: #f0edff; padding: 15px; border-radius: 6px; margin: 20px 0;">
+          <p style="margin: 0 0 6px 0; font-size: 14px; color: #555;">
+            <strong>Issued by:</strong> ${issuerName}
           </p>
-          <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
-            This certificate is minted as an NFT on the Algorand blockchain, providing permanent verification of your achievement.
+          <p style="margin: 0 0 6px 0; font-size: 14px; color: #555;">
+            <strong>Asset ID:</strong>
+            <a href="${assetExplorerUrl}" style="color: #9681FA; text-decoration: none;">${assetId}</a>
+          </p>
+          <p style="margin: 6px 0 0 0; font-size: 12px; color: #888;">
+            This certificate is minted as an NFT on the Algorand blockchain using ProofMint Platform.
           </p>
         </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${certificateUrl}" style="background-color: #0070f3; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">
-            View Certificate
-          </a>
-        </div>
-        
-        <p style="font-size: 14px; color: #777; margin-top: 30px;">
-          If you have any questions, please contact the certificate issuer.
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+          <tr>
+            <td align="center">
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding-right: 12px;">
+                    <a href="${claimPageUrl}" style="background-color: #9681FA; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; font-family: Arial, sans-serif;">
+                      Claim Certificate
+                    </a>
+                  </td>
+                  <td>
+                    <a href="${sharePageUrl}" style="background-color: #ffffff; color: #9681FA; padding: 12px 28px; text-decoration: none; border-radius: 6px; display: inline-block; border: 2px solid #9681FA; font-family: Arial, sans-serif;">
+                      View &amp; Share
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <p style="font-size: 13px; color: #999; margin-top: 30px; text-align: center;">
+          If you have questions, please contact ${issuerName}.
         </p>
       </div>
     `;
 
-    // Send email
     await transporter.sendMail({
       from: EMAIL_FROM,
       to: recipientEmail,
@@ -110,11 +122,10 @@ export async function sendCertificateEmail(
 
     console.log(`[EmailNotification] Certificate email sent successfully to ${recipientEmail} for asset ${assetId}`);
   } catch (error) {
-    // Requirement 9.4: Log error but don't fail certificate issuance
     console.error(
-      `[EmailNotification] Failed to send certificate email to ${recipientEmail} for asset ${assetId}:`,
+      `[EmailNotification] Failed to send certificate email to ${recipientEmail}:`,
       error instanceof Error ? error.message : String(error)
     );
-    // Don't throw - email failure should not fail the certificate issuance
+    // Don't throw — email failure must not fail certificate issuance
   }
 }
