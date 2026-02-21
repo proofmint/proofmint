@@ -30,6 +30,8 @@ const envVariables = [
 
   "ADMIN_EMAIL",
   "ADMIN_PASSWORD",
+
+  "TEMPLATES_PATH"
 ];
 
 const missingEnvVariables = envVariables.filter(
@@ -71,6 +73,8 @@ export const ONBOARDING_WALLET = process.env.ONBOARDING_WALLET!;
 
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD!;
+
+export const TEMPLATES_PATH = process.env.TEMPLATES_PATH!;
 
 const algodClient = new Algodv2(ALGOD_TOKEN, ALGOD_RPC, ALGOD_PORT);
 

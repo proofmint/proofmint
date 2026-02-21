@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { cookies } from "next/headers";
-import { JWT_SECRET } from "@/lib/const";
+import { JWT_SECRET, TEMPLATES_PATH } from "@/lib/const";
 import { jwtVerify } from "jose";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
+import { randomUUID } from "crypto";
 
 export async function GET(
   req: NextRequest,
@@ -74,15 +77,6 @@ export async function PUT(
       );
     }
 
-    const body = await request.json();
-
-    const {
-      templateName,
-      templateDescription,
-      backgroundImageUrl,
-      dynamicFields,
-    } = body;
-
     if (!templateId) {
       return NextResponse.json(
         { error: "Template ID is required" },
@@ -104,13 +98,75 @@ export async function PUT(
       );
     }
 
+    // Parse multipart form data
+    const formData = await request.formData();
+    const templateName = formData.get("templateName") as string;
+    const templateDescription = formData.get("templateDescription") as string;
+    const backgroundImage = formData.get("backgroundImage") as File | null;
+    const dynamicFieldsStr = formData.get("dynamicFields") as string;
+
+    // Validate required fields
+    if (!templateName || !templateDescription) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    let backgroundImageFilename = template.backgroundImageUrl; // Keep existing if no new image
+
+    // Handle new background image if provided
+    if (backgroundImage && backgroundImage.size > 0) {
+      const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
+      if (!allowedTypes.includes(backgroundImage.type)) {
+        return NextResponse.json(
+          { error: "Invalid image format. Background image must be PNG or JPEG." },
+          { status: 400 }
+        );
+      }
+
+      const maxSize = 5 * 1024 * 1024;
+      if (backgroundImage.size > maxSize) {
+        return NextResponse.json(
+          { error: "Image file is too large. Background image must be under 5MB." },
+          { status: 400 }
+        );
+      }
+
+      // Generate unique filename
+      const fileExtension = backgroundImage.type.split("/")[1];
+      const filename = `${Date.now()}-${randomUUID()}.${fileExtension}`;
+
+      // Save file to server
+      const uploadDir = TEMPLATES_PATH;
+      await mkdir(uploadDir, { recursive: true });
+      const filepath = path.join(uploadDir, filename);
+      const buffer = Buffer.from(await backgroundImage.arrayBuffer());
+      await writeFile(filepath, buffer);
+
+      backgroundImageFilename = filename;
+    }
+
+    // Parse dynamic fields
+    let dynamicFields = [];
+    if (dynamicFieldsStr) {
+      try {
+        dynamicFields = JSON.parse(dynamicFieldsStr);
+      } catch {
+        return NextResponse.json(
+          { error: "Invalid dynamic fields format" },
+          { status: 400 }
+        );
+      }
+    }
+
     const updatedTemplate = await prisma.certificateTemplate.update({
       where: { id: templateId },
       data: {
         templateName,
         templateDescription,
-        backgroundImageUrl,
-        dynamicFields: dynamicFields || [],
+        backgroundImageUrl: backgroundImageFilename,
+        dynamicFields: dynamicFields,
         updatedAt: new Date(),
       },
     });

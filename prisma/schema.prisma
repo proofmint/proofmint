@@ -135,18 +135,25 @@ model CertificateTemplate {
 }
 
 model IssuedCertificate {
-  id                String              @id @default(cuid())
-  assetId           String
-  templateId        String
-  receiverEmail     String
-  issuerId          String
-  jobId             String?
-  fieldData         Json
-  generatedImageUrl String
-  status            CredentialStatus    @default(PENDING)
-  issuedAt          DateTime            @default(now())
-  claimedAt         DateTime?
-  transactionHash   String?
+  id                   String              @id @default(cuid())
+  assetId              String?
+  templateId           String
+  receiverEmail        String
+  issuerId             String
+  jobId                String?
+  certificateName      String
+  unitName             String
+  description          String
+  properties           Json
+  imageCid             String?
+  metadataCid          String?
+  mintingStatus        MintingStatus       @default(PENDING)
+  status               CredentialStatus    @default(PENDING)
+  errorMessage         String?             @db.Text
+  issuedAt             DateTime            @default(now())
+  claimedAt            DateTime?
+  mintTransactionHash  String?
+  claimTransactionHash String?
   issuer            Issuer              @relation("IssuerCertificates", fields: [issuerId], references: [id])
   job               BulkIssuanceJob?    @relation(fields: [jobId], references: [id])
   template          CertificateTemplate @relation(fields: [templateId], references: [id])
@@ -161,6 +168,11 @@ model BulkIssuanceJob {
   id                    String              @id @default(cuid())
   issuerId              String
   certificateTemplateId String
+  certificateName       String
+  unitName              String
+  description           String
+  sendEmail             Boolean             @default(true)
+  customProperties      Json?
   recipientData         Json
   status                JobStatus           @default(PENDING)
   totalItems            Int
@@ -266,6 +278,12 @@ enum CredentialStatus {
   PENDING
   CLAIMED
   REJECTED
+}
+
+enum MintingStatus {
+  PENDING
+  MINTED
+  FAILED
 }
 
 enum AuthTokenType {

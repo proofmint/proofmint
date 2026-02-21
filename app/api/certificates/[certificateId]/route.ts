@@ -6,11 +6,48 @@ import {
   algodClient,
   ALGORAND_NETWORK,
   JWT_SECRET,
+  PINATA_GATEWAY,
 } from "@/lib/const";
 import prisma from "@/lib/prisma";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
 import { ensureOnboardingFund } from "@/lib/blockchain";
+import { requireIssuer } from "@/lib/auth";
+
+// GET — issuer fetches full details for a single certificate (used by bulk job modal)
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ certificateId: string }> }
+) {
+  const { certificateId } = await params;
+  const auth = await requireIssuer(req);
+  if ("error" in auth) return auth.error;
+  const issuerId = auth.payload.issuerId as string;
+
+  try {
+    const cert = await prisma.issuedCertificate.findFirst({
+      where: { id: certificateId, issuerId },
+    });
+
+    if (!cert) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const recipientUser = await prisma.user.findUnique({
+      where: { email: cert.receiverEmail },
+      select: { fullName: true },
+    });
+
+    return NextResponse.json({
+      certificate: {
+        ...cert,
+        imageUrl: cert.imageCid ? `${PINATA_GATEWAY}${cert.imageCid}` : null,
+        recipientName: recipientUser?.fullName ?? null,
+        network: ALGORAND_NETWORK,
+      },
+    });
+  } catch {
+    return NextResponse.json({ error: "Failed to fetch certificate" }, { status: 500 });
+  }
+}
 
 export async function POST(
   req: NextRequest,
@@ -56,12 +93,13 @@ export async function POST(
       );
     }
 
-    // Verify the badge belongs to the receiver
+    // Verify the certificate belongs to the receiver and has been minted
     const issuedCertificate = await prisma.issuedCertificate.findFirst({
       where: {
         id: certificateId,
         receiverEmail: userEmail,
-        status: "PENDING", // Only allow action on pending badges
+        mintingStatus: "MINTED",
+        status: "PENDING",
       },
       include: {
         issuer: {
@@ -148,7 +186,7 @@ export async function POST(
       data: {
         status: action === "accept" ? "CLAIMED" : "REJECTED",
         claimedAt: action === "accept" ? new Date() : null,
-        transactionHash: txnId,
+        claimTransactionHash: txnId || null,
       },
     });
 

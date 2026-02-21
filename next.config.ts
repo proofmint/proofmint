@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: extractHostname(PINATA_GATEWAY),
       },
+      {
+        protocol: "http",
+        hostname:"localhost",
+      }
     ],
   },
   eslint: {

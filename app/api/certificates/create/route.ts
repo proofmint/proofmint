@@ -154,12 +154,15 @@ export async function POST(req: NextRequest) {
 
     const newCertificate = await prisma.issuedCertificate.create({
       data: {
-        assetId: blockchainResult.assetIndex?.toString() || "",
+        assetId: blockchainResult.assetIndex?.toString(),
         templateId: templateId as string,
         receiverEmail: cleanString(recipientEmail as string),
         issuerId: issuer.id,
-        fieldData: properties,
-        generatedImageUrl: pinataResult.IpfsHash,
+        properties: properties,
+        certificateName: (recipientEmail as string) || "Certificate",
+        unitName: "CERT",
+        description: "Certificate",
+        imageCid: pinataResult.IpfsHash,
         status: "PENDING",
       },
     });

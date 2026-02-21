@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
       const response: VerificationResponse = {
         name: issuedCertificate.template.templateName,
         issuerName: issuedCertificate.issuer.user.organizationName,
-        imageUrl: issuedCertificate.generatedImageUrl,
+        imageUrl: issuedCertificate.imageCid ? `${PINATA_GATEWAY}${issuedCertificate.imageCid}` : "",
         dateOfAchievement: issuedCertificate.issuedAt.toISOString(),
         type: "certificate",
       };
@@ -242,7 +242,7 @@ export async function POST(req: NextRequest) {
       const response: VerificationResponse = {
         name: issuedCertificate.template.templateName,
         issuerName: issuedCertificate.issuer.user.organizationName,
-        imageUrl: issuedCertificate.generatedImageUrl,
+        imageUrl: issuedCertificate.imageCid ? `${PINATA_GATEWAY}${issuedCertificate.imageCid}` : "",
         dateOfAchievement: issuedCertificate.issuedAt.toISOString(),
         type: "certificate",
       };
