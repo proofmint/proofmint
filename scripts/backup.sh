@@ -54,11 +54,16 @@ fi
 #   • Percona XtraBackup – physical hot-backup, best for 10 GB+
 DB_URL="${DATABASE_URL:-}"
 if [[ -n "$DB_URL" ]]; then
-  DB_USER="$(echo "$DB_URL" | sed -E 's|mysql://([^:@/]*).*|\1|')"
-  DB_PASS="$(echo "$DB_URL" | sed -E 's|mysql://[^:]*:([^@]*)@.*|\1|')"
-  DB_HOST="$(echo "$DB_URL" | sed -E 's|mysql://[^@]*@([^:/]*).*|\1|')"
-  DB_PORT="$(echo "$DB_URL" | sed -E 's|mysql://[^@]*@[^:]*:([0-9]+).*|\1|')"
-  DB_NAME="$(echo "$DB_URL" | sed -E 's|.*/([^?]*).*|\1|')"
+  # Use node's URL parser — handles percent-encoded characters in credentials correctly
+  eval "$(node -e '
+    const u = new URL(process.env.DATABASE_URL);
+    const q = s => "\x27" + s.replace(/\x27/g, "\x27\\\x27\x27") + "\x27";
+    console.log("DB_USER=" + q(u.username));
+    console.log("DB_PASS=" + q(u.password));
+    console.log("DB_HOST=" + q(u.hostname));
+    console.log("DB_PORT=" + q(u.port));
+    console.log("DB_NAME=" + q(u.pathname.slice(1)));
+  ')"
 
   echo "[backup] [2/3] Dumping database '${DB_NAME}' @ ${DB_HOST}:${DB_PORT} ..."
 
