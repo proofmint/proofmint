@@ -54,23 +54,27 @@ fi
 #   • Percona XtraBackup – physical hot-backup, best for 10 GB+
 DB_URL="${DATABASE_URL:-}"
 if [[ -n "$DB_URL" ]]; then
-  # Use node's URL parser — handles percent-encoded characters in credentials correctly
+  # Extract raw (still percent-encoded) parts with regex, then decode exactly once
+  # with decodeURIComponent — more reliable than new URL() for non-standard schemes
   eval "$(node -e '
-    const u = new URL(process.env.DATABASE_URL);
+    const url = process.env.DATABASE_URL;
+    const m = url.match(/^[^:]+:\/\/([^:@]*)(?::([^@]*))?@([^:/]*)(?::(\d+))?\/([^?#]*)/);
+    if (!m) throw new Error("Cannot parse DATABASE_URL");
+    const dec = s => s ? decodeURIComponent(s) : "";
     const q = s => "\x27" + s.replace(/\x27/g, "\x27\\\x27\x27") + "\x27";
-    console.log("DB_USER=" + q(u.username));
-    console.log("DB_PASS=" + q(u.password));
-    console.log("DB_HOST=" + q(u.hostname));
-    console.log("DB_PORT=" + q(u.port));
-    console.log("DB_NAME=" + q(u.pathname.slice(1)));
+    console.log("DB_USER=" + q(dec(m[1])));
+    console.log("DB_PASS=" + q(dec(m[2] || "")));
+    console.log("DB_HOST=" + q(m[3]));
+    console.log("DB_PORT=" + q(m[4] || "3306"));
+    console.log("DB_NAME=" + q(dec(m[5])));
   ')"
 
   echo "[backup] [2/3] Dumping database '${DB_NAME}' @ ${DB_HOST}:${DB_PORT} ..."
 
-  MYSQL_ARGS=(-h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER")
-  [[ -n "$DB_PASS" ]] && MYSQL_ARGS+=(-p"$DB_PASS")
-
-  mysqldump "${MYSQL_ARGS[@]}" \
+  # Pass password via MYSQL_PWD env var — avoids shell expansion of special chars
+  # and suppresses the "password on command line" warning
+  MYSQL_PWD="$DB_PASS" mysqldump \
+    -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" \
     --single-transaction \
     --routines \
     --triggers \
