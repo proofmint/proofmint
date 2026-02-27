@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:status": "prisma migrate status"
+    "prisma:status": "prisma migrate status",
+    "backup": "bash scripts/backup.sh"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
