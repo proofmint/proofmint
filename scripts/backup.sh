@@ -79,6 +79,7 @@ if [[ -n "$DB_URL" ]]; then
     --routines \
     --triggers \
     --events \
+    --no-tablespaces \
     --set-gtid-purged=OFF \
     "$DB_NAME" > "${STAGING_DIR}/database.sql"
 
