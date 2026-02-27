@@ -103,7 +103,7 @@ export default function CreateTemplatePage() {
           const data = await response.json()
           
           // Load background image
-          const imageUrl = `/certificates/templates/${data.backgroundImageUrl}`
+          const imageUrl = `/api/uploads/certificates/templates/${data.backgroundImageUrl}`
           const blob = await fetch(imageUrl).then(res => res.blob())
           const file = new File([blob], data.backgroundImageUrl, { type: blob.type })
           

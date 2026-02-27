@@ -10,7 +10,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Allow public access to static assets and public paths
-  if(pathname.startsWith("/claim/") || pathname.startsWith("/share/") || pathname.startsWith("/certificates/templates/")) {
+  if(pathname.startsWith("/claim/") || pathname.startsWith("/share/")) {
     return NextResponse.next();
   }
 

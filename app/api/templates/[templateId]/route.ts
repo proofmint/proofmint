@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { cookies } from "next/headers";
-import { JWT_SECRET, TEMPLATES_PATH } from "@/lib/const";
+import { JWT_SECRET } from "@/lib/const";
+import { TEMPLATES_PATH } from "@/lib/uploads";
 import { jwtVerify } from "jose";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 
@@ -113,7 +114,8 @@ export async function PUT(
       );
     }
 
-    let backgroundImageFilename = template.backgroundImageUrl; // Keep existing if no new image
+    const oldFilename = template.backgroundImageUrl;
+    let newFilename: string | null = null;
 
     // Handle new background image if provided
     if (backgroundImage && backgroundImage.size > 0) {
@@ -133,18 +135,12 @@ export async function PUT(
         );
       }
 
-      // Generate unique filename
       const fileExtension = backgroundImage.type.split("/")[1];
-      const filename = `${Date.now()}-${randomUUID()}.${fileExtension}`;
+      newFilename = `${Date.now()}-${randomUUID()}.${fileExtension}`;
 
-      // Save file to server
-      const uploadDir = TEMPLATES_PATH;
-      await mkdir(uploadDir, { recursive: true });
-      const filepath = path.join(uploadDir, filename);
+      await mkdir(TEMPLATES_PATH, { recursive: true });
       const buffer = Buffer.from(await backgroundImage.arrayBuffer());
-      await writeFile(filepath, buffer);
-
-      backgroundImageFilename = filename;
+      await writeFile(path.join(TEMPLATES_PATH, newFilename), buffer);
     }
 
     // Parse dynamic fields
@@ -153,6 +149,9 @@ export async function PUT(
       try {
         dynamicFields = JSON.parse(dynamicFieldsStr);
       } catch {
+        if (newFilename) {
+          await unlink(path.join(TEMPLATES_PATH, newFilename)).catch(() => {});
+        }
         return NextResponse.json(
           { error: "Invalid dynamic fields format" },
           { status: 400 }
@@ -160,16 +159,32 @@ export async function PUT(
       }
     }
 
-    const updatedTemplate = await prisma.certificateTemplate.update({
-      where: { id: templateId },
-      data: {
-        templateName,
-        templateDescription,
-        backgroundImageUrl: backgroundImageFilename,
-        dynamicFields: dynamicFields,
-        updatedAt: new Date(),
-      },
-    });
+    let updatedTemplate;
+    try {
+      updatedTemplate = await prisma.certificateTemplate.update({
+        where: { id: templateId },
+        data: {
+          templateName,
+          templateDescription,
+          backgroundImageUrl: newFilename ?? oldFilename,
+          dynamicFields: dynamicFields,
+          updatedAt: new Date(),
+        },
+      });
+    } catch (dbError) {
+      // DB failed — remove the newly written file so nothing is left dangling
+      if (newFilename) {
+        await unlink(path.join(TEMPLATES_PATH, newFilename)).catch(() => {});
+      }
+      throw dbError;
+    }
+
+    // DB succeeded — now it's safe to remove the replaced file
+    if (newFilename && oldFilename) {
+      await unlink(path.join(TEMPLATES_PATH, oldFilename)).catch((err) =>
+        console.error(`Failed to delete old template file ${oldFilename}:`, err)
+      );
+    }
 
     return NextResponse.json(updatedTemplate, { status: 200 });
   } catch (error) {
@@ -222,9 +237,18 @@ export async function DELETE(
       );
     }
 
+    const imageFilename = template.backgroundImageUrl;
+
     await prisma.certificateTemplate.delete({
       where: { id: templateId, issuerId: issuerId },
     });
+
+    // DB committed — delete the file; log if it fails but don't surface the error
+    if (imageFilename) {
+      await unlink(path.join(TEMPLATES_PATH, imageFilename)).catch((err) =>
+        console.error(`Failed to delete template file ${imageFilename}:`, err)
+      );
+    }
 
     return NextResponse.json(
       { message: "Template deleted successfully" },

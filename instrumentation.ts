@@ -1,11 +1,23 @@
 export async function register() {
   // Only run in Node.js runtime (not Edge), where Prisma and the queue are available
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { mkdirSync, existsSync } = await import('fs');
+    const { TEMPLATES_PATH, CERTIFICATES_PATH, BADGES_PATH } = await import('./lib/uploads');
+    
+    for (const dir of [TEMPLATES_PATH, CERTIFICATES_PATH, BADGES_PATH]) {
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+        console.log(`[Uploads] Created directory: ${dir}`);
+      } else {
+        console.log(`[Uploads] Directory already exists: ${dir}`);
+      }
+    }
+    console.log('[Uploads] Upload directories ready');
+
     const { queueProcessor } = await import('./lib/services/queueProcessor');
     await queueProcessor.recoverPendingCertificates();
 
     const { CERTIFICATE_FONTS } = await import('./lib/certificateFonts');
-    const { existsSync } = await import('fs');
     const path = await import('path');
     const { GlobalFonts } = await import('@napi-rs/canvas');
     // Register custom fonts from public/fonts/ at module load time.

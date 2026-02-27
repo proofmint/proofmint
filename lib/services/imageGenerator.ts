@@ -10,7 +10,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import prisma from '../prisma';
 import { DynamicField, CertificateTemplate } from '../types/certificate';
-import { TEMPLATES_PATH } from '../const';
+import { TEMPLATES_PATH } from '../uploads';
 
 /**
  * Loads a template from the database
