@@ -30,7 +30,7 @@ export async function generateMetadata({
   const title = data.badge.name;
   const description =
     data.badge.description || `Issued by ${data.issuer.user.organizationName}`;
-  const imageUrl = `${PINATA_GATEWAY}${data.badge.imageUrl}`;
+  const imageUrl = `${PINATA_GATEWAY}${data.badge.imageCid}`;
   const pageUrl = `${APPLICATION_HOST}/share/badge/${data.id}`;
 
   return {
@@ -96,7 +96,7 @@ export default async function PublicBadgePage({
 
   const title = data.badge.name;
   const description = data.badge.description || "";
-  const imageUrl = `${PINATA_GATEWAY}${data.badge.imageUrl}`;
+  const imageUrl = `${PINATA_GATEWAY}${data.badge.imageCid}`;
   const pageUrl = `${APPLICATION_HOST}/share/badge/${data.id}`;
 
   const shareText = `I just earned the ${title} badge on ProofMint!`;

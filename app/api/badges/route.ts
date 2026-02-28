@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       });
       badges = badges.map((badge) => ({
         ...badge,
-        imageUrl: `${PINATA_GATEWAY}${badge.imageUrl}`,
+        imageUrl: `${PINATA_GATEWAY}${badge.imageCid}`,
       }));
     } else {
       const issuedBadges = await prisma.issuedBadge.findMany({
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
         ...badge,
         badge: {
           ...badge.badge,
-          imageUrl: `${PINATA_GATEWAY}${badge.badge.imageUrl}`,
+          imageUrl: `${PINATA_GATEWAY}${badge.badge.imageCid}`,
         },
       }));
       badges = { badges: transformedIssuedBadges, network: ALGORAND_NETWORK };

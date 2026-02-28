@@ -10,7 +10,7 @@ import { CheckCircle, Clock, Loader2 } from "lucide-react";
 import { useSession } from "@/contexts/SessionContext";
 
 type ClaimDetails = BadgeClaimLink & {
-  badge: Badge;
+  badge: Badge & { imageUrl: string };
   issuer: Issuer & { user: User };
   receiverUsers: User[];
 };

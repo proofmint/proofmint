@@ -46,7 +46,7 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ ...badge, imageUrl: `${PINATA_GATEWAY}${badge.imageUrl}`, distributionType, receiverUsers });
+    return NextResponse.json({ ...badge, imageUrl: `${PINATA_GATEWAY}${badge.imageCid}`, distributionType, receiverUsers });
   } catch (error) {
     console.error(`Failed to fetch badge ${badgeId}:`, error);
     return NextResponse.json(

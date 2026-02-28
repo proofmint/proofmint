@@ -35,6 +35,7 @@ type IssuedBadgeWithReceiver = IssuedBadge & {
 };
 
 type BadgeDetails = Badge & {
+  imageUrl: string;
   claimLink: BadgeClaimLink | null;
   issuedInstances: IssuedBadgeWithReceiver[];
   distributionType: "magic" | "email";

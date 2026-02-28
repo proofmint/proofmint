@@ -158,6 +158,13 @@ export async function POST(req: NextRequest) {
 
     const pinataResult = await uploadToPinata(imageFile);
 
+    if(!pinataResult || !pinataResult.IpfsHash) {
+      return NextResponse.json(
+        { error: "Failed to upload image to IPFS, please try again" },
+        { status: 500 }
+      );
+    }
+
     const mimeType = mime.lookup(imageFile.name);
     if (!mimeType) {
       return NextResponse.json(
@@ -182,6 +189,13 @@ export async function POST(req: NextRequest) {
     };
 
     const metadataCid = await uploadJsonToPinata(metadata);
+
+    if(!metadataCid || !metadataCid.IpfsHash) {
+      return NextResponse.json(
+        { error: "Failed to upload metadata to IPFS, please try again" },
+        { status: 500 }
+      );
+    }
 
     const suggestedParams = await algodClient.getTransactionParams().do();
     const group = [
@@ -248,7 +262,8 @@ export async function POST(req: NextRequest) {
           assetId: blockchainResult.assetIndex?.toString() || "",
           issuerId: issuer.id,
           description,
-          imageUrl: pinataResult.IpfsHash,
+          imageCid: pinataResult.IpfsHash,
+          metadataCid: metadataCid.IpfsHash,
           unitName,
           badgeType,
           customProperties: customProperties as any,

@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Badge as BadgeModel } from "@prisma/client"
 
 type BadgeWithCounts = BadgeModel & {
+  imageUrl: string;
   _count: {
     issuedInstances: number;
     claimLinks: number;

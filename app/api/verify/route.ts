@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
       const response: VerificationResponse = {
         name: issuedBadge.badge.name,
         issuerName: issuedBadge.issuer.user.organizationName,
-        imageUrl: `${PINATA_GATEWAY}${issuedBadge.badge.imageUrl}`,
+        imageUrl: `${PINATA_GATEWAY}${issuedBadge.badge.imageCid}`,
         dateOfAchievement: issuedBadge.badge.createdAt.toISOString(),
         type: "badge",
       };
@@ -208,7 +208,7 @@ export async function POST(req: NextRequest) {
       const response: VerificationResponse = {
         name: issuedBadge.badge.name,
         issuerName: issuedBadge.issuer.user.organizationName,
-        imageUrl: `${PINATA_GATEWAY}${issuedBadge.badge.imageUrl}`,
+        imageUrl: `${PINATA_GATEWAY}${issuedBadge.badge.imageCid}`,
         dateOfAchievement: issuedBadge.badge.createdAt.toISOString(),
         type: "badge",
       };
