@@ -22,12 +22,12 @@
  *
  * OPTIONAL ENV VARS
  * -----------------
- *   IPFS_GATEWAY          – IPFS gateway URL including the /ipfs path prefix
- *                           Trailing slash is optional (both forms are accepted)
- *                           Defaults to: https://ipfs.io/ipfs
- *                           e.g. https://ipfs.io/ipfs  or  https://ipfs.io/ipfs/
- *   UPLOADS_PATH          – Absolute path to the uploads directory
- *                           Defaults to: {cwd}/uploads
+ *   NEXT_PUBLIC_IPFS_GATEWAY    - IPFS gateway URL including the /ipfs path prefix
+ *                                 Trailing slash is optional (both forms are accepted)
+ *                                 Defaults to: https://ipfs.io/ipfs
+ *                                 e.g. https://ipfs.io/ipfs  or  https://ipfs.io/ipfs/
+ *   UPLOADS_PATH                – Absolute path to the uploads directory
+ *                                 Defaults to: {cwd}/uploads
  */
 
 import { config as loadEnv } from "dotenv";
@@ -44,7 +44,7 @@ import { createStorachaClient } from "@/lib/storacha";
 // Gateway must include the /ipfs path prefix, e.g. https://ipfs.io/ipfs
 // Trailing slash is stripped so we can safely append /{cid}
 const IPFS_GATEWAY = (
-  process.env.IPFS_GATEWAY || "https://ipfs.io/ipfs"
+  process.env.NEXT_PUBLIC_IPFS_GATEWAY || "https://ipfs.io/ipfs"
 ).replace(/\/+$/, "");
 
 const UPLOADS_PATH =
@@ -218,7 +218,7 @@ async function downloadCar(
   if (!contentType.includes("application/vnd.ipld.car")) {
     throw new Error(
       `Gateway returned unexpected content-type "${contentType}" for ${cid}. ` +
-        `Expected application/vnd.ipld.car. Try a different IPFS_GATEWAY.`
+      `Expected application/vnd.ipld.car. Try a different IPFS_GATEWAY.`
     );
   }
 

@@ -9,7 +9,10 @@ import { calculateSHA256 } from "@/lib/utils";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
 import { cleanString } from "@/lib/utils";
-import { uploadToPinata, uploadJsonToPinata } from "@/lib/pinata";
+import { uploadImageToStoracha, uploadJsonToStoracha } from "@/lib/storacha";
+import { CERTIFICATES_PATH } from "@/lib/uploads";
+import fs from "fs/promises";
+import pathModule from "path";
 
 export async function POST(req: NextRequest) {
   const token = (await cookies()).get("token")?.value;
@@ -86,8 +89,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pinataResult = await uploadToPinata(imageFile);
-
     const mimeType = mime.lookup(imageFile.name);
     if (!mimeType) {
       return NextResponse.json(
@@ -96,19 +97,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const uploadResult = await uploadImageToStoracha(imageFile);
+
+    if(!uploadResult || !uploadResult.IpfsHash) {
+      return NextResponse.json(
+        { error: "Failed to upload image to IPFS, please try again" },
+        { status: 500 }
+      );
+    }
+
+    // Save local copy with correct extension
+    const ext = mime.extension(mimeType) || "bin";
+    const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+    await fs.writeFile(pathModule.join(CERTIFICATES_PATH, `${uploadResult.IpfsHash}.${ext}`), imageBuffer);
+
     const imageHash = await calculateSHA256(await imageFile.arrayBuffer());
 
     const metadata = {
       name: "Certificate",
       unit_name: "CERT",
       creator: issuer.user.walletAddress,
-      image: `ipfs://${pinataResult.IpfsHash}#arc3`,
+      image: `ipfs://${uploadResult.IpfsHash}#arc3`,
       image_integrity: `sha256-${imageHash}`,
       image_mimetype: mimeType,
       properties: properties,
     };
 
-    const metadataCid = await uploadJsonToPinata(metadata);
+    const metadataCid = await uploadJsonToStoracha(metadata);
+
+    if(!metadataCid || !metadataCid.IpfsHash) {
+      return NextResponse.json(
+        { error: "Failed to upload metadata to IPFS, please try again" },
+        { status: 500 }
+      );
+    }
 
     const suggestedParams = await algodClient.getTransactionParams().do();
     const group = [
@@ -162,7 +184,7 @@ export async function POST(req: NextRequest) {
         certificateName: (recipientEmail as string) || "Certificate",
         unitName: "CERT",
         description: "Certificate",
-        imageCid: pinataResult.IpfsHash,
+        imageCid: uploadResult.IpfsHash,
         status: "PENDING",
       },
     });

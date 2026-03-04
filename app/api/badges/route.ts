@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
-import { ALGORAND_NETWORK, JWT_SECRET, PINATA_GATEWAY } from "@/lib/const";
+import { ALGORAND_NETWORK, JWT_SECRET } from "@/lib/const";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -29,10 +29,6 @@ export async function GET(req: NextRequest) {
           claimLink: true,
         },
       });
-      badges = badges.map((badge) => ({
-        ...badge,
-        imageUrl: `${PINATA_GATEWAY}${badge.imageCid}`,
-      }));
     } else {
       const issuedBadges = await prisma.issuedBadge.findMany({
         where: { receiverEmail: userEmail },
@@ -46,14 +42,7 @@ export async function GET(req: NextRequest) {
           },
         },
       });
-      const transformedIssuedBadges = issuedBadges.map((badge) => ({
-        ...badge,
-        badge: {
-          ...badge.badge,
-          imageUrl: `${PINATA_GATEWAY}${badge.badge.imageCid}`,
-        },
-      }));
-      badges = { badges: transformedIssuedBadges, network: ALGORAND_NETWORK };
+      badges = { badges: issuedBadges, network: ALGORAND_NETWORK };
     }
 
     return NextResponse.json(badges);

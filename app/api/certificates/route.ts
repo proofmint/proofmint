@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
-import { JWT_SECRET, ALGORAND_NETWORK, PINATA_GATEWAY } from "@/lib/const";
+import { JWT_SECRET, ALGORAND_NETWORK } from "@/lib/const";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -41,12 +41,7 @@ export async function GET(req: NextRequest) {
         select: { email: true, fullName: true },
       });
 
-      const enrichedSingle = singleCertificates.map((cert) => ({
-        ...cert,
-        imageUrl: cert.imageCid ? `${PINATA_GATEWAY}${cert.imageCid}` : null,
-      }));
-
-      return NextResponse.json({ singleCertificates: enrichedSingle, bulkJobs, receivers });
+      return NextResponse.json({ singleCertificates, bulkJobs, receivers });
     } else {
       // Receiver: only show minted certificates
       const certificates = await prisma.issuedCertificate.findMany({
@@ -61,12 +56,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      const enrichedCertificates = certificates.map((cert) => ({
-        ...cert,
-        imageUrl: cert.imageCid ? `${PINATA_GATEWAY}${cert.imageCid}` : null,
-      }));
-
-      return NextResponse.json({ certificates: enrichedCertificates, network: ALGORAND_NETWORK });
+      return NextResponse.json({ certificates, network: ALGORAND_NETWORK });
     }
   } catch (error) {
     console.error("Failed to fetch certificates:", error);

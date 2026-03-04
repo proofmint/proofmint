@@ -12,8 +12,8 @@ const envVariables = [
   "VAULT_TOKEN",
   "VAULT_HOST",
 
-  "PINATA_JWT",
-  "PINATA_GATEWAY",
+  "STORACHA_PRINCIPAL",
+  "STORACHA_PROOF",
   "DATABASE_URL",
 
   "JWT_SECRET",
@@ -55,8 +55,8 @@ export const APPLICATION_HOST = process.env.APPLICATION_HOST!;
 export const VAULT_TOKEN = process.env.VAULT_TOKEN!;
 export const VAULT_HOST = process.env.VAULT_HOST!;
 
-export const PINATA_JWT = process.env.PINATA_JWT!;
-export const PINATA_GATEWAY = process.env.PINATA_GATEWAY!;
+export const STORACHA_PRINCIPAL = process.env.STORACHA_PRINCIPAL!;
+export const STORACHA_PROOF = process.env.STORACHA_PROOF!;
 export const DATABASE_URL = process.env.DATABASE_URL!;
 
 export const JWT_SECRET = process.env.JWT_SECRET!;

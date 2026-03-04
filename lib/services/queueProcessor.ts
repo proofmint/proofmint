@@ -11,6 +11,7 @@ import { uploadCertificateWithMetadata } from './ipfsStorage';
 import { blockchainMintingService } from './blockchainMinting';
 import { sendCertificateEmail } from './emailNotification';
 import { refundCredits } from './creditManager';
+import { absoluteCertificateImageUrl } from '../imageUrl';
 import { CredentialStatus, JobStatus, MintingStatus, TransactionType } from '@prisma/client';
 
 /**
@@ -195,7 +196,7 @@ class QueueProcessor {
             certificateName,
             certificateId: certificate.id,
             assetId: mintResult.assetId,
-            imageUrl: `${process.env.PINATA_GATEWAY}${imageHash}`,
+            imageUrl: absoluteCertificateImageUrl(imageHash),
           });
         } catch (emailError) {
           console.error(`[QueueProcessor] Email failed for certificate ${certificate.id} (non-fatal):`, emailError);

@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge, BadgeClaimLink, Issuer, User } from "@prisma/client";
+import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
 import { CheckCircle, Clock, Loader2 } from "lucide-react";
 import { useSession } from "@/contexts/SessionContext";
 
 type ClaimDetails = BadgeClaimLink & {
-  badge: Badge & { imageUrl: string };
+  badge: Badge;
   issuer: Issuer & { user: User };
   receiverUsers: User[];
 };
@@ -164,10 +165,12 @@ export default function ClaimPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="relative aspect-square w-full">
-            <img
-              src={claim.badge.imageUrl}
+            <FallbackIpfsImage
+              cid={claim.badge.imageCid}
+              type="badge"
               alt={claim.badge.name}
-              className="rounded-md w-96 h-96 object-cover"
+              fill
+              className="rounded-md object-cover"
             />
           </div>
           <p className="text-muted-foreground">{claim.badge.description}</p>

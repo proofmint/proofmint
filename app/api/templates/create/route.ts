@@ -77,12 +77,8 @@ export async function POST(request: Request) {
     const fileExtension = backgroundImage.type.split("/")[1];
     const filename = `${Date.now()}-${randomUUID()}.${fileExtension}`;
 
-    // Ensure directory exists
-    const uploadDir = TEMPLATES_PATH;
-    await mkdir(uploadDir, { recursive: true });
-
     // Save file to server
-    const filepath = path.join(uploadDir, filename);
+    const filepath = path.join(TEMPLATES_PATH, filename);
     const buffer = Buffer.from(await backgroundImage.arrayBuffer());
     await writeFile(filepath, buffer);
 

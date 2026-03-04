@@ -26,8 +26,25 @@ export async function GET(
   }
 
   try {
-    const file = await fs.readFile(requestedPath);
-    const ext = path.extname(requestedPath).toLowerCase();
+    // If the last segment has no extension, treat it as a CID and scan for {cid}.*
+    const lastSegment = segments[segments.length - 1];
+    let filePath = requestedPath;
+
+    if (!path.extname(lastSegment)) {
+      const dir = path.resolve(UPLOADS_PATH, ...segments.slice(0, -1));
+      const files = await fs.readdir(dir);
+      const match = files.find((f) => {
+        const name = path.parse(f).name;
+        return name === lastSegment;
+      });
+      if (!match) {
+        return new NextResponse("Not Found", { status: 404 });
+      }
+      filePath = path.join(dir, match);
+    }
+
+    const file = await fs.readFile(filePath);
+    const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] ?? "application/octet-stream";
 
     return new NextResponse(new Uint8Array(file), {

@@ -10,7 +10,10 @@ import { calculateSHA256, getEmailsHash } from "@/lib/utils";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
 import { cleanString } from "@/lib/utils";
-import { uploadToPinata, uploadJsonToPinata } from "@/lib/pinata";
+import { uploadImageToStoracha, uploadJsonToStoracha } from "@/lib/storacha";
+import { BADGES_PATH } from "@/lib/uploads";
+import fs from "fs/promises";
+import path from "path";
 import { isValidEmail } from "@/lib/validators";
 
 const createBadgeSchema = z.object({
@@ -156,15 +159,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pinataResult = await uploadToPinata(imageFile);
-
-    if(!pinataResult || !pinataResult.IpfsHash) {
-      return NextResponse.json(
-        { error: "Failed to upload image to IPFS, please try again" },
-        { status: 500 }
-      );
-    }
-
     const mimeType = mime.lookup(imageFile.name);
     if (!mimeType) {
       return NextResponse.json(
@@ -172,6 +166,20 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const uploadResult = await uploadImageToStoracha(imageFile);
+
+    if(!uploadResult || !uploadResult.IpfsHash) {
+      return NextResponse.json(
+        { error: "Failed to upload image to IPFS, please try again" },
+        { status: 500 }
+      );
+    }
+
+    // Save local copy with correct extension
+    const ext = mime.extension(mimeType) || "bin";
+    const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+    await fs.writeFile(path.join(BADGES_PATH, `${uploadResult.IpfsHash}.${ext}`), imageBuffer);
 
     const imageHash = await calculateSHA256(await imageFile.arrayBuffer());
 
@@ -182,13 +190,13 @@ export async function POST(req: NextRequest) {
       unit_name: unitName,
       creator: issuer.user.walletAddress,
       description,
-      image: `ipfs://${pinataResult.IpfsHash}#arc3`,
+      image: `ipfs://${uploadResult.IpfsHash}#arc3`,
       image_integrity: `sha256-${imageHash}`,
       image_mimetype: mimeType,
       properties: customProperties,
     };
 
-    const metadataCid = await uploadJsonToPinata(metadata);
+    const metadataCid = await uploadJsonToStoracha(metadata);
 
     if(!metadataCid || !metadataCid.IpfsHash) {
       return NextResponse.json(
@@ -262,7 +270,7 @@ export async function POST(req: NextRequest) {
           assetId: blockchainResult.assetIndex?.toString() || "",
           issuerId: issuer.id,
           description,
-          imageCid: pinataResult.IpfsHash,
+          imageCid: uploadResult.IpfsHash,
           metadataCid: metadataCid.IpfsHash,
           unitName,
           badgeType,

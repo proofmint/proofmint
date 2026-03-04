@@ -1,17 +1,20 @@
-import { PINATA_GATEWAY } from '../const';
-import { uploadToPinata, uploadJsonToPinata } from '../pinata';
+import { uploadImageToStoracha, uploadJsonToStoracha } from '../storacha';
+import { CERTIFICATES_PATH } from '../uploads';
+import { certificateImageUrl } from '../imageUrl';
 import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
 import { IPFSUploadResult, CertificateMetadata } from '../types/certificate';
 
 /**
  * IPFS Storage Service
  * 
- * Handles uploading certificate images and metadata to IPFS via Pinata.
+ * Handles uploading certificate images and metadata to IPFS via Storacha.
  * Implements ARC3 standard for Algorand NFT metadata.
  */
 
 /**
- * Upload an image buffer to IPFS via Pinata
+ * Upload an image buffer to IPFS via Storacha
  * 
  * @param imageBuffer - The image data as a Buffer
  * @param filename - The filename for the image (e.g., "certificate.png")
@@ -24,20 +27,19 @@ export async function uploadImage(
   console.log(`[IPFSStorage] Uploading image to IPFS: ${filename} (${imageBuffer.length} bytes)`);
   
   try {
-    // Convert Buffer to File object for Pinata upload
     const uint8Array = new Uint8Array(imageBuffer);
     const blob = new Blob([uint8Array], { type: 'image/png' });
     const file = new File([blob], filename, { type: 'image/png' });
 
-    // Upload to Pinata
-    const result = await uploadToPinata(file);
+    const result = await uploadImageToStoracha(file);
+
+    // Save local copy
+    await fs.writeFile(path.join(CERTIFICATES_PATH, `${result.IpfsHash}.png`), imageBuffer);
 
     console.log(`[IPFSStorage] Successfully uploaded image to IPFS: ${result.IpfsHash}`);
 
     return {
       IpfsHash: result.IpfsHash,
-      PinSize: result.PinSize,
-      Timestamp: result.Timestamp,
     };
   } catch (error) {
     console.error(`[IPFSStorage] Failed to upload image to IPFS:`, error);
@@ -58,7 +60,7 @@ export function calculateImageHash(imageBuffer: Buffer): string {
 }
 
 /**
- * Upload certificate metadata to IPFS via Pinata
+ * Upload certificate metadata to IPFS via Storacha
  * Formats metadata according to ARC3 standard for Algorand NFTs
  * 
  * @param metadata - Certificate metadata object
@@ -75,15 +77,12 @@ export async function uploadMetadata(
       throw new Error('Metadata must include name, image, and image_integrity fields');
     }
 
-    // Upload metadata JSON to Pinata
-    const result = await uploadJsonToPinata(metadata);
+    const result = await uploadJsonToStoracha(metadata);
 
     console.log(`[IPFSStorage] Successfully uploaded metadata to IPFS: ${result.IpfsHash}`);
 
     return {
       IpfsHash: result.IpfsHash,
-      PinSize: result.PinSize,
-      Timestamp: result.Timestamp,
     };
   } catch (error) {
     console.error(`[IPFSStorage] Failed to upload metadata to IPFS:`, error);
@@ -127,6 +126,10 @@ export async function uploadCertificateWithMetadata(
     // Step 1: Upload image to IPFS
     const imageResult = await uploadImage(imageBuffer, 'certificate.png');
 
+    if(!imageResult || !imageResult.IpfsHash) {
+      throw new Error('Failed to upload image to IPFS');
+    }
+
     // Step 2: Calculate image integrity hash
     const imageIntegrity = calculateImageHash(imageBuffer);
     console.log(`[IPFSStorage] Calculated image integrity hash: ${imageIntegrity.substring(0, 20)}...`);
@@ -145,12 +148,16 @@ export async function uploadCertificateWithMetadata(
     // Step 4: Upload metadata to IPFS
     const metadataResult = await uploadMetadata(metadata);
 
+    if(!metadataResult || !metadataResult.IpfsHash) {
+      throw new Error('Failed to upload metadata to IPFS');
+    }
+
     console.log(`[IPFSStorage] Complete upload workflow finished. Image: ${imageResult.IpfsHash}, Metadata: ${metadataResult.IpfsHash}`);
 
     return {
       imageHash: imageResult.IpfsHash,
       metadataHash: metadataResult.IpfsHash,
-      imageUrl: `${PINATA_GATEWAY}${imageResult.IpfsHash}`,
+      imageUrl: certificateImageUrl(imageResult.IpfsHash),
     };
   } catch (error) {
     console.error(`[IPFSStorage] Failed in complete certificate upload workflow:`, error);

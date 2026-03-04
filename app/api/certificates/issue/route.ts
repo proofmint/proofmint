@@ -7,6 +7,7 @@ import { generateCertificate } from "@/lib/services/imageGenerator";
 import { uploadCertificateWithMetadata } from "@/lib/services/ipfsStorage";
 import { blockchainMintingService } from "@/lib/services/blockchainMinting";
 import { sendCertificateEmail } from "@/lib/services/emailNotification";
+import { absoluteCertificateImageUrl } from "@/lib/imageUrl";
 
 /**
  * POST /api/certificates/issue
@@ -260,7 +261,7 @@ export async function POST(req: NextRequest) {
             certificateName,
             certificateId: certificate.id,
             assetId: mintResult.assetId,
-            imageUrl: `${process.env.PINATA_GATEWAY}${imageHash}`,
+            imageUrl: absoluteCertificateImageUrl(imageHash),
           });
         } catch (emailError) {
           console.error("[Issue] Email notification failed (non-fatal):", emailError);

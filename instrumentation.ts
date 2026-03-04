@@ -2,9 +2,9 @@ export async function register() {
   // Only run in Node.js runtime (not Edge), where Prisma and the queue are available
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { mkdirSync, existsSync } = await import('fs');
-    const { TEMPLATES_PATH, CERTIFICATES_PATH, BADGES_PATH } = await import('./lib/uploads');
+    const { TEMPLATES_PATH, CERTIFICATES_PATH, BADGES_PATH, IPFS_BACKUP_PATH } = await import('./lib/uploads');
     
-    for (const dir of [TEMPLATES_PATH, CERTIFICATES_PATH, BADGES_PATH]) {
+    for (const dir of [TEMPLATES_PATH, CERTIFICATES_PATH, BADGES_PATH, IPFS_BACKUP_PATH]) {
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
         console.log(`[Uploads] Created directory: ${dir}`);

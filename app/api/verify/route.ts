@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isValidEmail } from "@/lib/validators";
-import { PINATA_GATEWAY } from "@/lib/const";
+import { absoluteBadgeImageUrl, absoluteCertificateImageUrl } from "@/lib/imageUrl";
 
 const ALLOWED_ORIGINS = [
   "https://algorand.edubuktrucv.com",
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
       const response: VerificationResponse = {
         name: issuedBadge.badge.name,
         issuerName: issuedBadge.issuer.user.organizationName,
-        imageUrl: `${PINATA_GATEWAY}${issuedBadge.badge.imageCid}`,
+        imageUrl: absoluteBadgeImageUrl(issuedBadge.badge.imageCid),
         dateOfAchievement: issuedBadge.badge.createdAt.toISOString(),
         type: "badge",
       };
@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
       const response: VerificationResponse = {
         name: issuedCertificate.template.templateName,
         issuerName: issuedCertificate.issuer.user.organizationName,
-        imageUrl: issuedCertificate.imageCid ? `${PINATA_GATEWAY}${issuedCertificate.imageCid}` : "",
+        imageUrl: issuedCertificate.imageCid ? absoluteCertificateImageUrl(issuedCertificate.imageCid) : "",
         dateOfAchievement: issuedCertificate.issuedAt.toISOString(),
         type: "certificate",
       };
@@ -208,7 +208,7 @@ export async function POST(req: NextRequest) {
       const response: VerificationResponse = {
         name: issuedBadge.badge.name,
         issuerName: issuedBadge.issuer.user.organizationName,
-        imageUrl: `${PINATA_GATEWAY}${issuedBadge.badge.imageCid}`,
+        imageUrl: absoluteBadgeImageUrl(issuedBadge.badge.imageCid),
         dateOfAchievement: issuedBadge.badge.createdAt.toISOString(),
         type: "badge",
       };
@@ -242,7 +242,7 @@ export async function POST(req: NextRequest) {
       const response: VerificationResponse = {
         name: issuedCertificate.template.templateName,
         issuerName: issuedCertificate.issuer.user.organizationName,
-        imageUrl: issuedCertificate.imageCid ? `${PINATA_GATEWAY}${issuedCertificate.imageCid}` : "",
+        imageUrl: issuedCertificate.imageCid ? absoluteCertificateImageUrl(issuedCertificate.imageCid) : "",
         dateOfAchievement: issuedCertificate.issuedAt.toISOString(),
         type: "certificate",
       };

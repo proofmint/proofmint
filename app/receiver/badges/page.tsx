@@ -20,14 +20,14 @@ import {
 } from "@/components/ui/select";
 import { Award, Search, ExternalLink, Calendar, Loader2, Copy } from "lucide-react";
 import { Share2 } from "lucide-react";
-import Image from "next/image";
+import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
 
 type Badge = {
   id: string;
   title: string;
   issuer: string;
   description: string;
-  image?: string;
+  imageCid?: string;
   status: "CLAIMED" | "PENDING" | "REJECTED";
   type: string;
   properties: Record<string, string>;
@@ -118,7 +118,7 @@ export default function BadgesPage() {
           title: item.badge.name,
           issuer: item.issuer.user.organizationName,
           description: item.badge.description,
-          image: item.badge.imageUrl,
+          imageCid: item.badge.imageCid,
           status: item.status,
           type: item.badge.badgeType,
           properties:
@@ -201,12 +201,18 @@ export default function BadgesPage() {
             className="group shadow-sm hover:shadow-lg transition-all border rounded-2xl flex flex-col overflow-hidden"
           >
             <div className="px-6 pt-6 pb-4">
-              <div className="w-[100px] h-[100px] mx-auto mb-4 rounded-lg overflow-hidden border border-gray-200">
-                <Image
-                  src={badge.image || "/placeholder.png"}
-                  alt={badge.title}
-                  className="object-contain w-full h-full"
-                />
+              <div className="relative w-[100px] h-[100px] mx-auto mb-4 rounded-lg overflow-hidden border border-gray-200">
+                {badge.imageCid ? (
+                  <FallbackIpfsImage
+                    cid={badge.imageCid}
+                    type="badge"
+                    alt={badge.title}
+                    fill
+                    className="object-contain"
+                  />
+                ) : (
+                  <img src="/placeholder.png" alt={badge.title} className="object-contain w-full h-full" />
+                )}
               </div>
               <CardTitle className="text-center text-lg font-semibold text-gray-800">
                 {badge.title}

@@ -1,8 +1,8 @@
 import prisma from "@/lib/prisma";
 import { APPLICATION_HOST, ALGORAND_NETWORK } from "@/lib/const";
 import type { Metadata } from "next";
-import Image from "next/image";
-import { PINATA_GATEWAY } from "@/lib/const";
+import { absoluteBadgeImageUrl } from "@/lib/imageUrl";
+import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
 
 function getTransactionExplorerUrl(txHash: string): string {
   const network = ALGORAND_NETWORK.toLowerCase();
@@ -30,7 +30,7 @@ export async function generateMetadata({
   const title = data.badge.name;
   const description =
     data.badge.description || `Issued by ${data.issuer.user.organizationName}`;
-  const imageUrl = `${PINATA_GATEWAY}${data.badge.imageCid}`;
+  const imageUrl = absoluteBadgeImageUrl(data.badge.imageCid);
   const pageUrl = `${APPLICATION_HOST}/share/badge/${data.id}`;
 
   return {
@@ -96,7 +96,6 @@ export default async function PublicBadgePage({
 
   const title = data.badge.name;
   const description = data.badge.description || "";
-  const imageUrl = `${PINATA_GATEWAY}${data.badge.imageCid}`;
   const pageUrl = `${APPLICATION_HOST}/share/badge/${data.id}`;
 
   const shareText = `I just earned the ${title} badge on ProofMint!`;
@@ -113,12 +112,12 @@ export default async function PublicBadgePage({
         <div className="relative overflow-hidden rounded-2xl border bg-white shadow-sm">
           <div className="bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 p-8 flex flex-col md:flex-row items-center gap-6">
             <div className="w-28 h-28 md:w-36 md:h-36 rounded-xl bg-white/70 backdrop-blur border shadow-sm overflow-hidden flex items-center justify-center">
-              <Image
-                src={imageUrl}
+              <FallbackIpfsImage
+                cid={data.badge.imageCid}
+                type="badge"
                 alt={title}
-                layout="fill"
-                objectFit="contain"
-                className="rounded-md"
+                fill
+                className="rounded-md object-contain"
               />
             </div>
             <div className="text-center md:text-left">

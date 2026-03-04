@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { cookies } from "next/headers";
-import { algodClient, JWT_SECRET, OPERATIONAL_WALLET, PINATA_GATEWAY } from "@/lib/const";
+import { algodClient, JWT_SECRET, OPERATIONAL_WALLET } from "@/lib/const";
 import { jwtVerify } from "jose";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
@@ -43,7 +43,7 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ ...claim, badge: { ...claim.badge, imageUrl: `${PINATA_GATEWAY}${claim.badge.imageCid}` }, receiverUsers });
+    return NextResponse.json({ ...claim, receiverUsers });
   } catch (error) {
     console.error(`Failed to fetch claim ${claimId}:`, error);
     return NextResponse.json(

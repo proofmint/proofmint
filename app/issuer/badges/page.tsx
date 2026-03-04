@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import Image from "next/image"
+import { FallbackIpfsImage } from "@/components/FallbackIpfsImage"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlusCircle, Users, Link as LinkIcon } from "lucide-react"
@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast"
 import { Badge as BadgeModel } from "@prisma/client"
 
 type BadgeWithCounts = BadgeModel & {
-  imageUrl: string;
   _count: {
     issuedInstances: number;
     claimLinks: number;
@@ -73,7 +72,7 @@ export default function BadgesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="relative aspect-square w-full">
-                    <Image src={badge.imageUrl} alt={badge.name} layout="fill" objectFit="cover" className="rounded-md" />
+                    <FallbackIpfsImage cid={badge.imageCid} type="badge" alt={badge.name} fill className="rounded-md object-cover" />
                   </div>
                 </CardContent>
                 <CardFooter className="text-sm text-muted-foreground">

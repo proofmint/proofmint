@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import Image from "next/image";
+import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -42,7 +42,7 @@ type Certificate = {
   title: string;
   issuer: string;
   description: string;
-  image?: string;
+  imageCid?: string;
   status: "claimed" | "pending" | "rejected";
   issuedDate?: string;
   claimedDate?: string;
@@ -121,9 +121,10 @@ export default function CertificatesPage() {
   };
 
   const handleDownloadCertificate = async (certificate: Certificate) => {
-    if (!certificate.image) return;
+    if (!certificate.imageCid) return;
+    const downloadUrl = `/api/uploads/certificates/${certificate.imageCid}`;
     try {
-      const response = await fetch(certificate.image);
+      const response = await fetch(downloadUrl);
       if (!response.ok) {
         throw new Error(`Network response was not ok: ${response.statusText}`);
       }
@@ -154,7 +155,7 @@ export default function CertificatesPage() {
             title: item.template.templateName,
             issuer: item.issuer.user.organizationName,
             description: item.template.templateDescription,
-            image: item.imageUrl || undefined,
+            imageCid: item.imageCid || undefined,
             status: item.status.toLowerCase() as Certificate["status"],
             fieldValues: item.properties
               ? Object.entries(item.properties as Record<string, string>).map(([key, value]) => ({ key, value }))
@@ -230,12 +231,17 @@ export default function CertificatesPage() {
             >
               <CardHeader className="pb-3">
                 <div className="relative aspect-video bg-gray-100 rounded-lg mb-3 overflow-hidden">
-                  <Image
-                    src={certificate.image || "/placeholder.svg"}
-                    alt={certificate.title}
-                    fill
-                    className="object-cover"
-                  />
+                  {certificate.imageCid ? (
+                    <FallbackIpfsImage
+                      cid={certificate.imageCid}
+                      type="certificate"
+                      alt={certificate.title}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <img src="/placeholder.svg" alt={certificate.title} className="object-cover w-full h-full" />
+                  )}
                 </div>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

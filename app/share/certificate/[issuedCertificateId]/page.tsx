@@ -1,7 +1,8 @@
 import prisma from "@/lib/prisma";
-import { APPLICATION_HOST, ALGORAND_NETWORK, PINATA_GATEWAY } from "@/lib/const";
+import { APPLICATION_HOST, ALGORAND_NETWORK } from "@/lib/const";
 import type { Metadata } from "next";
-import Image from "next/image";
+import { absoluteCertificateImageUrl } from "@/lib/imageUrl";
+import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
 
 function getAssetExplorerUrl(assetId: string): string {
   const network = ALGORAND_NETWORK.toLowerCase();
@@ -33,7 +34,7 @@ export async function generateMetadata({
 
   const title = data.certificateName;
   const description = data.description || `Issued by ${data.issuer.user.organizationName}`;
-  const imageUrl = data.imageCid ? `${PINATA_GATEWAY}${data.imageCid}` : null;
+  const imageUrl = data.imageCid ? absoluteCertificateImageUrl(data.imageCid) : null;
   const pageUrl = `${APPLICATION_HOST}/share/certificate/${data.id}`;
 
   return {
@@ -87,7 +88,6 @@ export default async function PublicCertificatePage({
   });
 
   const title = data.certificateName;
-  const imageUrl = data.imageCid ? `${PINATA_GATEWAY}${data.imageCid}` : null;
   const issuerName = data.issuer.user.organizationName;
   const properties = data.properties as Record<string, string>;
 
@@ -97,10 +97,11 @@ export default async function PublicCertificatePage({
         <div className="relative overflow-hidden rounded-2xl border bg-white shadow-sm">
           {/* Header */}
           <div className="bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 p-8 flex flex-col md:flex-row items-center gap-6">
-            {imageUrl && (
+            {data.imageCid && (
               <div className="w-48 md:w-64 rounded-xl bg-white/70 backdrop-blur border shadow-sm overflow-hidden">
-                <Image
-                  src={imageUrl}
+                <FallbackIpfsImage
+                  cid={data.imageCid}
+                  type="certificate"
                   alt={title}
                   width={256}
                   height={192}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,6 @@ interface IssuedCertificate {
   id: string;
   receiverEmail: string;
   imageCid: string | null;
-  imageUrl: string | null;
   mintingStatus: "PENDING" | "MINTED" | "FAILED";
   status: "PENDING" | "CLAIMED" | "REJECTED";
   issuedAt: string;
@@ -172,17 +171,18 @@ export default function CertificatesPage() {
                       <p className="text-xs text-muted-foreground truncate">{cert.template.templateName}</p>
                     </CardHeader>
                     <CardContent className="pb-2">
-                      {cert.imageUrl ? (
-                        <div className="relative aspect-[4/3] w-full">
-                          <Image
-                            src={cert.imageUrl}
+                      {cert.imageCid ? (
+                        <div className="relative aspect-4/3 w-full">
+                          <FallbackIpfsImage
+                            cid={cert.imageCid}
+                            type="certificate"
                             alt={cert.certificateName}
                             fill
                             className="rounded-md object-cover"
                           />
                         </div>
                       ) : (
-                        <div className="aspect-[4/3] w-full rounded-md bg-gray-100 flex items-center justify-center">
+                        <div className="aspect-4/3 w-full rounded-md bg-gray-100 flex items-center justify-center">
                           <FileText className="h-8 w-8 text-gray-300" />
                         </div>
                       )}
@@ -251,7 +251,7 @@ export default function CertificatesPage() {
                                 </div>
                               )}
                             </div>
-                            <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                           </div>
                         </CardContent>
                       </Card>

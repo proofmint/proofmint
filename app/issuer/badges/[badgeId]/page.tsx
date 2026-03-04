@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Image from "next/image";
+import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
 import {
   Card,
   CardContent,
@@ -35,7 +35,6 @@ type IssuedBadgeWithReceiver = IssuedBadge & {
 };
 
 type BadgeDetails = Badge & {
-  imageUrl: string;
   claimLink: BadgeClaimLink | null;
   issuedInstances: IssuedBadgeWithReceiver[];
   distributionType: "magic" | "email";
@@ -164,12 +163,12 @@ export default function BadgeDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="relative aspect-square w-full">
-                <Image
-                  src={badge.imageUrl}
+                <FallbackIpfsImage
+                  cid={badge.imageCid}
+                  type="badge"
                   alt={badge.name}
-                  layout="fill"
-                  objectFit="cover"
-                  className="rounded-md"
+                  fill
+                  className="rounded-md object-cover"
                 />
               </div>
               <div className="space-y-2">

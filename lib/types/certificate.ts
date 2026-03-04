@@ -126,12 +126,12 @@ export interface BulkIssuanceResponse {
 // ============================================================================
 
 /**
- * IPFS upload result from Pinata
+ * IPFS upload result
  */
 export interface IPFSUploadResult {
   IpfsHash: string;
-  PinSize: number;
-  Timestamp: string;
+  PinSize?: number;
+  Timestamp?: string;
 }
 
 /**

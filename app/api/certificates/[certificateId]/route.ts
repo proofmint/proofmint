@@ -6,7 +6,6 @@ import {
   algodClient,
   ALGORAND_NETWORK,
   JWT_SECRET,
-  PINATA_GATEWAY,
 } from "@/lib/const";
 import prisma from "@/lib/prisma";
 import algosdk from "algosdk";
@@ -39,7 +38,6 @@ export async function GET(
     return NextResponse.json({
       certificate: {
         ...cert,
-        imageUrl: cert.imageCid ? `${PINATA_GATEWAY}${cert.imageCid}` : null,
         recipientName: recipientUser?.fullName ?? null,
         network: ALGORAND_NETWORK,
       },
