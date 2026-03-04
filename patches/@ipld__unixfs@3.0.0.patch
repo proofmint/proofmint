@@ -1,0 +1,8 @@
+diff --git a/src/file/chunker/api.ts b/src/file/chunker/api.d.ts
+similarity index 100%
+rename from src/file/chunker/api.ts
+rename to src/file/chunker/api.d.ts
+diff --git a/src/file/chunker/indexed.ts b/src/file/chunker/indexed.d.ts
+similarity index 100%
+rename from src/file/chunker/indexed.ts
+rename to src/file/chunker/indexed.d.ts
