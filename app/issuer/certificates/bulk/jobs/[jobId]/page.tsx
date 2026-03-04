@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +72,7 @@ interface CertDetail {
   mintingStatus: "PENDING" | "MINTED" | "FAILED";
   status: "PENDING" | "CLAIMED" | "REJECTED";
   properties: Record<string, string>;
-  imageUrl: string | null;
+  imageCid: string | null;
   assetId: string | null;
   mintTransactionHash: string | null;
   claimTransactionHash: string | null;
@@ -400,9 +400,9 @@ export default function JobDetailPage() {
           ) : certDetail ? (
             <div className="space-y-5 pt-1">
               {/* Image */}
-              {certDetail.imageUrl && (
+              {certDetail.imageCid && (
                 <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100">
-                  <Image src={certDetail.imageUrl} alt={certDetail.certificateName} fill className="object-cover" />
+                  <FallbackIpfsImage cid={certDetail.imageCid} type="certificate" alt={certDetail.certificateName} fill className="object-cover" />
                 </div>
               )}
 
