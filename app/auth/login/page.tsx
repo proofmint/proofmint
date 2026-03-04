@@ -27,8 +27,9 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import CommonHeader from "@/components/CommonHeader";
 import { Mail, Clock, CheckCircle } from "lucide-react";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginPageInner() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
@@ -412,5 +413,13 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageInner />
+    </Suspense>
   );
 }
