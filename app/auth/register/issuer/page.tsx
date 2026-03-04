@@ -72,11 +72,7 @@ export default function IssuerRegisterPage() {
       });
 
       if (res.ok) {
-        toast({
-          title: "Registration successful!",
-          description: "We've sent a verification link to your email address.",
-        });
-        router.push("/auth/login");
+        router.push("/auth/login?registered=issuer");
       } else {
         const data = await res.json();
         toast({

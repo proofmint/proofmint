@@ -25,7 +25,16 @@ export const sendVerificationEmail = async (email: string, token: string) => {
     from: EMAIL_FROM,
     to: email,
     subject: "Verify your email address",
-    html: `<p>Click <a href="${confirmLink}">here</a> to verify your email.<br>Valid for 1 hour.</p>`,
+    html: `
+      <p>Click <a href="${confirmLink}">here</a> to verify your email address.</p>
+      <p>This link is valid for <strong>1 hour</strong>.</p>
+      <p>
+        <strong>Link expired?</strong> No worries — you don't need to re-register.
+        Just go to the <a href="${APPLICATION_HOST}/auth/login">login page</a> and sign in using
+        <strong>OTP</strong> or <strong>Magic Link</strong>. Both methods will automatically
+        verify your email on first use.
+      </p>
+    `,
   });
 };
 

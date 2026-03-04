@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,10 +15,18 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSession } from "@/contexts/SessionContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import Logo from "@/public/images/Logo.png";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import CommonHeader from "@/components/CommonHeader";
+import { Mail, Clock, CheckCircle } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -27,9 +35,19 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [registrationModal, setRegistrationModal] = useState<"receiver" | "issuer" | null>(null);
   const { toast } = useToast();
   const { login } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const registered = searchParams.get("registered");
+    if (registered === "receiver" || registered === "issuer") {
+      setRegistrationModal(registered);
+    }
+  }, [searchParams]);
+
   const handleSendOtp = async () => {
     if (!email) {
       toast({
@@ -152,6 +170,83 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
+      <Dialog
+        open={registrationModal !== null}
+        onOpenChange={(open) => !open && setRegistrationModal(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-[#9681FA]" />
+              {registrationModal === "issuer"
+                ? "Account Created — Two Steps to Go"
+                : "One Last Step — Verify Your Email"}
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-4 pt-2 text-sm text-gray-600">
+                <div className="flex items-start gap-3 rounded-lg bg-purple-50 p-3">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#9681FA]" />
+                  <div>
+                    <p className="font-medium text-gray-800">Verify your email</p>
+                    <p>
+                      We've sent a verification link to your email address.
+                      Please click it to activate your account before signing in.
+                    </p>
+                  </div>
+                </div>
+
+                {registrationModal === "issuer" && (
+                  <div className="flex items-start gap-3 rounded-lg bg-amber-50 p-3">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                    <div>
+                      <p className="font-medium text-gray-800">Business verification pending</p>
+                      <p>
+                        As an issuer, your organization details are also reviewed
+                        by our admin team. This typically takes{" "}
+                        <span className="font-semibold text-gray-800">24–48 hours</span>.
+                        You'll receive an email once your account is approved and
+                        ready to issue credentials.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-3">
+                  <Mail className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-gray-800">Link expired?</p>
+                    <p>
+                      The verification link is valid for <span className="font-semibold text-gray-800">1 hour</span>. If it
+                      expires, you don't need a new one — simply sign in using
+                      the{" "}
+                      <span className="font-semibold text-gray-800">OTP</span>{" "}
+                      or{" "}
+                      <span className="font-semibold text-gray-800">
+                        Magic Link
+                      </span>{" "}
+                      tab on this page. Both methods verify your email
+                      automatically upon first use.
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500">
+                  Didn't receive the email? Check your spam folder or contact
+                  support.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <Button
+            className="w-full mt-2"
+            style={{ backgroundColor: "#9681FA" }}
+            onClick={() => setRegistrationModal(null)}
+          >
+            Got it, I'll check my email
+          </Button>
+        </DialogContent>
+      </Dialog>
+
       <CommonHeader />
       <div className="flex items-center justify-center mt-10 p-4">
         <Card className="w-full max-w-md">
