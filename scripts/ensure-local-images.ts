@@ -31,6 +31,7 @@ import { CarReader } from "@ipld/car";
 import { exporter } from "ipfs-unixfs-exporter";
 import { CID } from "multiformats/cid";
 import prisma from "@/lib/prisma";
+import { fileTypeFromBuffer } from "file-type";
 
 const UPLOADS_PATH =
   process.env.UPLOADS_PATH || path.join(process.cwd(), "uploads");
@@ -122,18 +123,18 @@ async function extractImageFromCar(carPath: string): Promise<Buffer | null> {
 /**
  * Detect image MIME type from the first few bytes (magic bytes).
  */
-function detectExt(buffer: Buffer): string {
-  if (buffer[0] === 0x89 && buffer[1] === 0x50) return "png";
-  if (buffer[0] === 0xff && buffer[1] === 0xd8) return "jpg";
-  if (buffer[0] === 0x47 && buffer[1] === 0x49) return "gif";
-  if (
-    buffer[0] === 0x52 &&
-    buffer[1] === 0x49 &&
-    buffer[8] === 0x57 &&
-    buffer[9] === 0x45
-  )
-    return "webp";
-  if (buffer.slice(0, 4).toString() === "<svg") return "svg";
+async function detectExt(buffer: Buffer): Promise<string> {
+  const type = await fileTypeFromBuffer(buffer);
+
+  if (type) {
+    if (type.ext === "jpeg") return "jpg";
+    return type.ext;
+  }
+
+  // fallback for SVG
+  const textStart = buffer.toString("utf8", 0, 500).toLowerCase();
+  if (textStart.includes("<svg")) return "svg";
+
   return "bin";
 }
 
@@ -240,7 +241,7 @@ async function main() {
     if (fs.existsSync(carPath)) {
       const imageBytes = await extractImageFromCar(carPath);
       if (imageBytes && imageBytes.length > 0) {
-        const ext = detectExt(imageBytes);
+        const ext = await detectExt(imageBytes);
         fs.writeFileSync(path.join(destDir, `${cid}.${ext}`), imageBytes);
         console.log(`extracted from CAR (.${ext})`);
         imgExtracted++;

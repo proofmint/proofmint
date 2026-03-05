@@ -317,3 +317,24 @@ enum DiscountType {
   PERCENTAGE
   FIXED_AMOUNT
 }
+
+model IpfsPinRecord {
+  id        String    @id @default(cuid())
+  cid       String    @unique
+  createdAt DateTime  @default(now())
+  pins      IpfsPin[]
+
+  @@map("IpfsPinRecord")
+}
+
+model IpfsPin {
+  id        String        @id @default(cuid())
+  recordId  String
+  provider  String
+  pinnedAt  DateTime      @default(now())
+  record    IpfsPinRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@unique([recordId, provider])
+  @@index([recordId])
+  @@map("IpfsPin")
+}

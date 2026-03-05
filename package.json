@@ -14,7 +14,9 @@
     "backup": "bash scripts/backup.sh",
     "migrate:ipfs": "tsx scripts/migrate-ipfs-provider.ts",
     "ensure-images": "tsx scripts/ensure-local-images.ts",
-    "fix:bulk-missing-ipfs": "tsx --tsconfig tsconfig.scripts.json scripts/fix-bulk-missing-ipfs.ts"
+    "fix:bulk-missing-ipfs": "tsx --tsconfig tsconfig.scripts.json scripts/fix-bulk-missing-ipfs.ts",
+    "upload:cars": "tsx --tsconfig tsconfig.scripts.json scripts/upload-cars-to-storacha.ts",
+    "sync:pins": "tsx --tsconfig tsconfig.scripts.json scripts/sync-storacha-pins.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
@@ -34,12 +36,15 @@
     "@storacha/client": "^2.0.7",
     "algosdk": "^3.3.1",
     "bcryptjs": "^3.0.2",
+    "blockstore-core": "^6.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "csv-parse": "^6.1.0",
     "dotenv": "^17.2.1",
+    "file-type": "^21.3.0",
     "form-data": "^4.0.4",
     "ipfs-unixfs-exporter": "^15.0.3",
+    "ipfs-unixfs-importer": "^16.1.1",
     "jose": "^6.0.12",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.525.0",

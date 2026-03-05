@@ -9,7 +9,7 @@ import { calculateSHA256 } from "@/lib/utils";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
 import { cleanString } from "@/lib/utils";
-import { uploadImageToStoracha, uploadJsonToStoracha } from "@/lib/storacha";
+import { storeAsCAR } from "@/lib/car";
 import { CERTIFICATES_PATH } from "@/lib/uploads";
 import fs from "fs/promises";
 import pathModule from "path";
@@ -97,40 +97,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const uploadResult = await uploadImageToStoracha(imageFile);
-
-    if(!uploadResult || !uploadResult.IpfsHash) {
-      return NextResponse.json(
-        { error: "Failed to upload image to IPFS, please try again" },
-        { status: 500 }
-      );
-    }
-
-    // Save local copy with correct extension
     const ext = mime.extension(mimeType) || "bin";
     const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
-    await fs.writeFile(pathModule.join(CERTIFICATES_PATH, `${uploadResult.IpfsHash}.${ext}`), imageBuffer);
+    const imageCid = await storeAsCAR(new Uint8Array(imageBuffer));
 
-    const imageHash = await calculateSHA256(await imageFile.arrayBuffer());
+    // Save local copy with correct extension
+    await fs.writeFile(pathModule.join(CERTIFICATES_PATH, `${imageCid}.${ext}`), imageBuffer);
+
+    const imageHash = await calculateSHA256(imageBuffer.buffer as ArrayBuffer);
 
     const metadata = {
       name: "Certificate",
       unit_name: "CERT",
       creator: issuer.user.walletAddress,
-      image: `ipfs://${uploadResult.IpfsHash}#arc3`,
+      image: `ipfs://${imageCid}#arc3`,
       image_integrity: `sha256-${imageHash}`,
       image_mimetype: mimeType,
       properties: properties,
     };
 
-    const metadataCid = await uploadJsonToStoracha(metadata);
-
-    if(!metadataCid || !metadataCid.IpfsHash) {
-      return NextResponse.json(
-        { error: "Failed to upload metadata to IPFS, please try again" },
-        { status: 500 }
-      );
-    }
+    const metadataCid = await storeAsCAR(new TextEncoder().encode(JSON.stringify(metadata)));
 
     const suggestedParams = await algodClient.getTransactionParams().do();
     const group = [
@@ -141,7 +127,7 @@ export async function POST(req: NextRequest) {
           decimals: 0,
           assetName: "Certificate",
           unitName: "CERT",
-          assetURL: `ipfs://${metadataCid.IpfsHash}#arc3`,
+          assetURL: `ipfs://${metadataCid}#arc3`,
           defaultFrozen: false,
           manager: issuer.user.walletAddress,
           reserve: issuer.user.walletAddress,
@@ -184,7 +170,7 @@ export async function POST(req: NextRequest) {
         certificateName: (recipientEmail as string) || "Certificate",
         unitName: "CERT",
         description: "Certificate",
-        imageCid: uploadResult.IpfsHash,
+        imageCid: imageCid,
         status: "PENDING",
       },
     });

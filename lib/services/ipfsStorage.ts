@@ -1,4 +1,4 @@
-import { uploadImageToStoracha, uploadJsonToStoracha } from '../storacha';
+import { storeAsCAR } from '../car';
 import { CERTIFICATES_PATH } from '../uploads';
 import { certificateImageUrl } from '../imageUrl';
 import crypto from 'crypto';
@@ -27,19 +27,15 @@ export async function uploadImage(
   console.log(`[IPFSStorage] Uploading image to IPFS: ${filename} (${imageBuffer.length} bytes)`);
   
   try {
-    const uint8Array = new Uint8Array(imageBuffer);
-    const blob = new Blob([uint8Array], { type: 'image/png' });
-    const file = new File([blob], filename, { type: 'image/png' });
-
-    const result = await uploadImageToStoracha(file);
+    const cid = await storeAsCAR(new Uint8Array(imageBuffer));
 
     // Save local copy
-    await fs.writeFile(path.join(CERTIFICATES_PATH, `${result.IpfsHash}.png`), imageBuffer);
+    await fs.writeFile(path.join(CERTIFICATES_PATH, `${cid}.png`), imageBuffer);
 
-    console.log(`[IPFSStorage] Successfully uploaded image to IPFS: ${result.IpfsHash}`);
+    console.log(`[IPFSStorage] Stored image as CAR: ${cid}`);
 
     return {
-      IpfsHash: result.IpfsHash,
+      IpfsHash: cid,
     };
   } catch (error) {
     console.error(`[IPFSStorage] Failed to upload image to IPFS:`, error);
@@ -77,12 +73,12 @@ export async function uploadMetadata(
       throw new Error('Metadata must include name, image, and image_integrity fields');
     }
 
-    const result = await uploadJsonToStoracha(metadata);
+    const cid = await storeAsCAR(new TextEncoder().encode(JSON.stringify(metadata)));
 
-    console.log(`[IPFSStorage] Successfully uploaded metadata to IPFS: ${result.IpfsHash}`);
+    console.log(`[IPFSStorage] Stored metadata as CAR: ${cid}`);
 
     return {
-      IpfsHash: result.IpfsHash,
+      IpfsHash: cid,
     };
   } catch (error) {
     console.error(`[IPFSStorage] Failed to upload metadata to IPFS:`, error);

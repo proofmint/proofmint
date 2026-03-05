@@ -10,7 +10,7 @@ import { calculateSHA256, getEmailsHash } from "@/lib/utils";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
 import { cleanString } from "@/lib/utils";
-import { uploadImageToStoracha, uploadJsonToStoracha } from "@/lib/storacha";
+import { storeAsCAR } from "@/lib/car";
 import { BADGES_PATH } from "@/lib/uploads";
 import fs from "fs/promises";
 import path from "path";
@@ -167,21 +167,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const uploadResult = await uploadImageToStoracha(imageFile);
-
-    if(!uploadResult || !uploadResult.IpfsHash) {
-      return NextResponse.json(
-        { error: "Failed to upload image to IPFS, please try again" },
-        { status: 500 }
-      );
-    }
-
-    // Save local copy with correct extension
     const ext = mime.extension(mimeType) || "bin";
     const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
-    await fs.writeFile(path.join(BADGES_PATH, `${uploadResult.IpfsHash}.${ext}`), imageBuffer);
+    const imageCid = await storeAsCAR(new Uint8Array(imageBuffer));
 
-    const imageHash = await calculateSHA256(await imageFile.arrayBuffer());
+    // Save local copy with correct extension
+    await fs.writeFile(path.join(BADGES_PATH, `${imageCid}.${ext}`), imageBuffer);
+
+    const imageHash = await calculateSHA256(imageBuffer.buffer as ArrayBuffer);
 
     const emailsHash = await getEmailsHash(recipientEmails);
 
@@ -190,20 +183,13 @@ export async function POST(req: NextRequest) {
       unit_name: unitName,
       creator: issuer.user.walletAddress,
       description,
-      image: `ipfs://${uploadResult.IpfsHash}#arc3`,
+      image: `ipfs://${imageCid}#arc3`,
       image_integrity: `sha256-${imageHash}`,
       image_mimetype: mimeType,
       properties: customProperties,
     };
 
-    const metadataCid = await uploadJsonToStoracha(metadata);
-
-    if(!metadataCid || !metadataCid.IpfsHash) {
-      return NextResponse.json(
-        { error: "Failed to upload metadata to IPFS, please try again" },
-        { status: 500 }
-      );
-    }
+    const metadataCid = await storeAsCAR(new TextEncoder().encode(JSON.stringify(metadata)));
 
     const suggestedParams = await algodClient.getTransactionParams().do();
     const group = [
@@ -214,7 +200,7 @@ export async function POST(req: NextRequest) {
           decimals: 0,
           assetName: badgeName,
           unitName: unitName,
-          assetURL: `ipfs://${metadataCid.IpfsHash}#arc3`,
+          assetURL: `ipfs://${metadataCid}#arc3`,
           defaultFrozen: false,
           manager: issuer.user.walletAddress,
           reserve: issuer.user.walletAddress,
@@ -270,8 +256,8 @@ export async function POST(req: NextRequest) {
           assetId: blockchainResult.assetIndex?.toString() || "",
           issuerId: issuer.id,
           description,
-          imageCid: uploadResult.IpfsHash,
-          metadataCid: metadataCid.IpfsHash,
+          imageCid: imageCid,
+          metadataCid: metadataCid,
           unitName,
           badgeType,
           customProperties: customProperties as any,
