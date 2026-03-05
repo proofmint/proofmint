@@ -52,7 +52,6 @@ const signBytes = async (
     }),
   });
   const data = await res.json();
-  console.log(data);
   const rawSignature = data.data.signature.toString();
   const signature = rawSignature.split(":")[2];
   const signatureBuffer = Buffer.from(signature, "base64");

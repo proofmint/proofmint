@@ -13,7 +13,8 @@
     "prisma:status": "prisma migrate status",
     "backup": "bash scripts/backup.sh",
     "migrate:ipfs": "tsx scripts/migrate-ipfs-provider.ts",
-    "ensure-images": "tsx scripts/ensure-local-images.ts"
+    "ensure-images": "tsx scripts/ensure-local-images.ts",
+    "fix:bulk-missing-ipfs": "tsx --tsconfig tsconfig.scripts.json scripts/fix-bulk-missing-ipfs.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
