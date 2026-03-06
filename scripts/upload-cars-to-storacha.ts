@@ -66,11 +66,6 @@ function releaseLock(): void {
 async function main() {
   if (!acquireLock()) process.exit(0);
 
-  console.log("=".repeat(60));
-  console.log("CAR Upload: local backup → Storacha");
-  console.log("=".repeat(60));
-  console.log(`Backup dir: ${BACKUP_DIR}`);
-
   // Records with no IpfsPin row for this provider
   const pending = await prisma.ipfsPinRecord.findMany({
     where: {
@@ -79,12 +74,18 @@ async function main() {
     orderBy: { createdAt: "asc" },
   });
 
-  console.log(`\nPending uploads: ${pending.length}`);
-
   if (pending.length === 0) {
-    console.log("Nothing to do.");
+    console.log(`Nothing to do. Checked at: ${new Date().toISOString()}`);
     return;
   }
+
+  console.log("=".repeat(60));
+  console.log(`CAR Upload: local backup → Storacha`);
+  console.log(`Started   : ${new Date().toISOString()}`);
+  console.log("=".repeat(60));
+  console.log(`Backup dir: ${BACKUP_DIR}`);
+  console.log(`\nPending uploads: ${pending.length}`);
+
 
   const client = await createStorachaClient();
   console.log(`Storacha space : ${client.currentSpace()?.did() ?? "(unknown)"}\n`);
@@ -127,6 +128,7 @@ async function main() {
   console.log(`Uploaded : ${uploaded}`);
   console.log(`Failed   : ${failed}`);
   console.log(`Skipped  : ${skipped}`);
+  console.log(`Ended    : ${new Date().toISOString()}`);
 
   if (failed > 0) {
     console.log("\nRe-run to retry failed uploads.");
