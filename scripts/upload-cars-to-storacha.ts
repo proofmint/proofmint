@@ -34,10 +34,38 @@ const PROVIDER = "storacha";
 const UPLOADS_PATH =
   process.env.UPLOADS_PATH || path.join(process.cwd(), "uploads");
 const BACKUP_DIR = path.join(UPLOADS_PATH, "ipfs-backup");
+const LOCK_FILE = path.join(BACKUP_DIR, ".upload-cars.lock");
+
+// ─── Lock helpers ─────────────────────────────────────────────────────────────
+
+function acquireLock(): boolean {
+  // If lock file exists, check whether the recorded PID is still alive
+  if (fs.existsSync(LOCK_FILE)) {
+    const pid = parseInt(fs.readFileSync(LOCK_FILE, "utf8").trim(), 10);
+    if (!isNaN(pid)) {
+      try {
+        process.kill(pid, 0); // throws if process is dead
+        console.log(`Another instance is already running (PID ${pid}). Exiting.`);
+        return false;
+      } catch {
+        // Stale lock — previous run crashed without cleaning up
+        console.log(`Removing stale lock file (PID ${pid} is no longer running).`);
+      }
+    }
+  }
+  fs.writeFileSync(LOCK_FILE, String(process.pid));
+  return true;
+}
+
+function releaseLock(): void {
+  try { fs.rmSync(LOCK_FILE); } catch { /* already gone */ }
+}
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
+  if (!acquireLock()) process.exit(0);
+
   console.log("=".repeat(60));
   console.log("CAR Upload: local backup → Storacha");
   console.log("=".repeat(60));
@@ -105,6 +133,11 @@ async function main() {
     process.exit(1);
   }
 }
+
+// Release lock on clean exit, crash, or SIGINT/SIGTERM
+process.on("exit", releaseLock);
+process.on("SIGINT", () => process.exit(1));
+process.on("SIGTERM", () => process.exit(1));
 
 main()
   .then(() => process.exit(0))
