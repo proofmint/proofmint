@@ -96,7 +96,7 @@ export default async function PublicCertificatePage({
       <div className="mx-auto max-w-5xl px-6 py-10">
         <div className="relative overflow-hidden rounded-2xl border bg-white shadow-sm">
           {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 p-8 flex flex-col md:flex-row items-center gap-6">
+          <div className="bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 p-4 md:p-8 flex flex-col md:flex-row items-center gap-6">
             {data.imageCid && (
               <div className="w-full sm:w-80 md:w-96 shrink-0 rounded-xl bg-white/70 backdrop-blur border shadow-sm overflow-hidden">
                 <FallbackIpfsImage

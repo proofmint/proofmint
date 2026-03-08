@@ -110,7 +110,7 @@ export default async function PublicBadgePage({
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       <div className="mx-auto max-w-5xl px-6 py-10">
         <div className="relative overflow-hidden rounded-2xl border bg-white shadow-sm">
-          <div className="bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 p-8 flex flex-col md:flex-row items-center gap-6">
+          <div className="bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 p-4 md:p-8 flex flex-col md:flex-row items-center gap-6">
             <div className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 shrink-0 rounded-xl bg-white/70 backdrop-blur border shadow-sm overflow-hidden flex items-center justify-center">
               <FallbackIpfsImage
                 cid={data.badge.imageCid}
