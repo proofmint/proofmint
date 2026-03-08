@@ -17,6 +17,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ProofMint",
   description: "ProofMint is a platform for creating and managing digital credentials.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ProofMint",
+  },
+  themeColor: "#9681FA",
 };
 
 export default function RootLayout({

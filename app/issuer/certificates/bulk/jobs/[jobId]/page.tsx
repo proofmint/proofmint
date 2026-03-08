@@ -30,6 +30,7 @@ import {
   AlertTriangle,
   RefreshCw,
   ExternalLink,
+  Download,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -236,6 +237,28 @@ export default function JobDetailPage() {
   const progress = job.totalItems > 0 ? Math.round((job.processedItems / job.totalItems) * 100) : 0;
   const canRetry = job.failedItems > 0 && job.status === "COMPLETED";
   const mintedCount = job.processedItems - job.failedItems;
+  const claimedCount = job.issuedCertificates.filter((c) => c.status === "CLAIMED").length;
+
+  const downloadCsv = () => {
+    const headers = ["S.No", "Email", "Name", "Mint Status", "Claim Status"];
+    const rows = job.issuedCertificates.map((cert, i) => [
+      i + 1,
+      cert.receiverEmail,
+      cert.recipientName ?? "",
+      cert.mintingStatus,
+      cert.status,
+    ]);
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${job.certificateName.replace(/\s+/g, "_")}_certificates.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -274,7 +297,7 @@ export default function JobDetailPage() {
           {/* Stats row */}
           <div className="flex flex-wrap items-center gap-6">
             <JobStatusBadge status={job.status} />
-            <div className="grid grid-cols-3 gap-6 flex-1">
+            <div className="grid grid-cols-4 gap-6 flex-1">
               <div>
                 <p className="text-xs text-gray-500">Total</p>
                 <p className="text-2xl font-bold text-gray-900">{job.totalItems}</p>
@@ -282,6 +305,10 @@ export default function JobDetailPage() {
               <div>
                 <p className="text-xs text-gray-500">Minted</p>
                 <p className="text-2xl font-bold text-green-600">{mintedCount}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Claimed</p>
+                <p className="text-2xl font-bold text-blue-600">{claimedCount}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Failed</p>
@@ -320,9 +347,16 @@ export default function JobDetailPage() {
 
       {/* Certificates table */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-          Certificates ({job.issuedCertificates.length})
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-gray-800">
+            Certificates ({job.issuedCertificates.length})
+          </h2>
+          {job.issuedCertificates.length > 0 && (
+            <Button size="sm" variant="outline" onClick={downloadCsv}>
+              <Download className="h-4 w-4 mr-1" /> Download CSV
+            </Button>
+          )}
+        </div>
 
         {job.issuedCertificates.length === 0 ? (
           <div className="text-center py-10 border-2 border-dashed rounded-lg">

@@ -20,7 +20,7 @@ export interface DynamicField {
   x: number;
   /** Y coordinate for text positioning (pixels from top) */
   y: number;
-  /** Font size in pixels (8-72) */
+  /** Font size in pixels (8-200) */
   fontSize: number;
   /** Font family name (e.g., "Arial", "Times New Roman") */
   fontFamily: string;

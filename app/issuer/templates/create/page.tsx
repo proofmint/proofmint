@@ -562,7 +562,7 @@ export default function CreateTemplatePage() {
                       <Input
                         type="number"
                         min="12"
-                        max="72"
+                        max="200"
                         value={selectedFieldData.fontSize}
                         onChange={(e) =>
                           updateField(selectedFieldData.id, { fontSize: Number.parseInt(e.target.value) || 24 })

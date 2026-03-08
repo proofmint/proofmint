@@ -178,16 +178,16 @@ export async function POST(request: Request) {
           return NextResponse.json(
             { 
               error: `${fieldPrefix} (${field.name}): Font size is required and must be a number.`,
-              suggestion: "Provide a font size between 8 and 72."
+              suggestion: "Provide a font size between 8 and 200."
             },
             { status: 400 }
           );
         }
 
-        if (field.fontSize < 8 || field.fontSize > 72) {
+        if (field.fontSize < 8 || field.fontSize > 200) {
           return NextResponse.json(
             { 
-              error: `${fieldPrefix} (${field.name}): Font size must be between 8 and 72 (got ${field.fontSize}).`,
+              error: `${fieldPrefix} (${field.name}): Font size must be between 8 and 200 (got ${field.fontSize}).`,
               suggestion: "Use a font size within the valid range for better readability."
             },
             { status: 400 }

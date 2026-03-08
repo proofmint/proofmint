@@ -98,13 +98,13 @@ export default async function PublicCertificatePage({
           {/* Header */}
           <div className="bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 p-8 flex flex-col md:flex-row items-center gap-6">
             {data.imageCid && (
-              <div className="w-48 md:w-64 rounded-xl bg-white/70 backdrop-blur border shadow-sm overflow-hidden">
+              <div className="w-full sm:w-80 md:w-96 shrink-0 rounded-xl bg-white/70 backdrop-blur border shadow-sm overflow-hidden">
                 <FallbackIpfsImage
                   cid={data.imageCid}
                   type="certificate"
                   alt={title}
-                  width={256}
-                  height={192}
+                  width={384}
+                  height={288}
                   className="w-full h-auto object-cover rounded-xl"
                 />
               </div>

@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Upload, Plus, X, Move, Type, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useParams, useRouter } from "next/navigation"
+import { CERTIFICATE_FONTS } from "@/lib/certificateFonts"
 
 interface DynamicField {
   id: string
@@ -20,6 +21,7 @@ interface DynamicField {
   y: number
   fontSize: number
   color: string
+  fontFamily: string
   fontWeight: string
   textAlign: string
 }
@@ -55,6 +57,19 @@ export default function CreateTemplatePage() {
 
   const params = useParams()
   const templateId = params.templateId as string
+
+  // Load all custom Google Fonts for browser preview
+  useEffect(() => {
+    const googleFamilies = CERTIFICATE_FONTS
+      .filter(f => f.googleFamily)
+      .map(f => `family=${f.googleFamily}`)
+      .join('&')
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = `https://fonts.googleapis.com/css2?${googleFamilies}&display=swap`
+    document.head.appendChild(link)
+    return () => { document.head.removeChild(link) }
+  }, [])
 
   // Helper function to calculate rendered image dimensions and offset (accounting for object-contain)
   const getRenderedImageMetrics = useCallback(() => {
@@ -115,6 +130,7 @@ export default function CreateTemplatePage() {
               ...field,
               id: field.id || `field_${Date.now()}_${index}`,
               placeholder: field.placeholder || `[${field.name}]`,
+              fontFamily: field.fontFamily || 'Arial',
               textAlign: field.align || field.textAlign || 'left',
             }))
             
@@ -172,6 +188,7 @@ export default function CreateTemplatePage() {
       y: 100,
       fontSize: 24,
       color: "#000000",
+      fontFamily: "Arial",
       fontWeight: "normal",
       textAlign: "left",
     }
@@ -310,7 +327,7 @@ export default function CreateTemplatePage() {
         x: Math.round(field.x),
         y: Math.round(field.y),
         fontSize: field.fontSize,
-        fontFamily: "Arial", // Default font family
+        fontFamily: field.fontFamily,
         color: field.color,
         maxWidth: undefined,
         maxHeight: undefined,
@@ -532,6 +549,7 @@ export default function CreateTemplatePage() {
                             transform: 'translate(-50%, -75%)', // Center the element at the coordinates
                             fontSize: displayFontSize,
                             color: field.color,
+                            fontFamily: field.fontFamily,
                             fontWeight: field.fontWeight,
                             textAlign: field.textAlign as any,
                             padding: '4px 8px',
@@ -576,13 +594,29 @@ export default function CreateTemplatePage() {
                   <CardDescription>Customize the appearance of the selected field</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Font Family</Label>
+                    <select
+                      className="w-full p-2 border rounded"
+                      value={selectedFieldData.fontFamily}
+                      style={{ fontFamily: selectedFieldData.fontFamily }}
+                      onChange={(e) => updateField(selectedFieldData.id, { fontFamily: e.target.value })}
+                    >
+                      {CERTIFICATE_FONTS.map(font => (
+                        <option key={font.name} value={font.name} style={{ fontFamily: font.name }}>
+                          {font.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label>Font Size</Label>
                       <Input
                         type="number"
                         min="12"
-                        max="72"
+                        max="200"
                         value={selectedFieldData.fontSize}
                         onChange={(e) =>
                           updateField(selectedFieldData.id, { fontSize: Number.parseInt(e.target.value) || 24 })
@@ -622,9 +656,10 @@ export default function CreateTemplatePage() {
                       </select>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-4">
+                  <p className="text-xs text-gray-500">
                     Coordinates: X={Math.round(selectedFieldData.x)}, Y={Math.round(selectedFieldData.y)} (in original image pixels: {template.imageWidth}x{template.imageHeight})
                   </p>
+                  </div>
                 </CardContent>
               </Card>
             )}
