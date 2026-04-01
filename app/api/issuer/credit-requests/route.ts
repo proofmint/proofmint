@@ -15,7 +15,6 @@ export async function GET(req: NextRequest) {
       id: r.id,
       creditsRequested: r.creditsRequested,
       amountPaid: String(r.amountPaid),
-      paymentProofUrl: r.paymentProofBase64,
       referenceNumber: r.referenceNumber,
       status: r.status,
       createdAt: r.createdAt,
