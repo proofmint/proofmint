@@ -194,24 +194,30 @@ export default function BulkIssueCertificatePage() {
         }
 
         let hasErrors = false
-          ; (results.data as Record<string, string>[]).forEach((row, i) => {
-            const rowErrors: string[] = []
-            const email = row["email"]?.trim() ?? ""
-            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-              rowErrors.push("Invalid email")
+        const seenEmails = new Set<string>();
+        (results.data as Record<string, string>[]).forEach((row, i) => {
+          const rowErrors: string[] = []
+          const email = row["email"]?.trim() ?? ""
+          if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            rowErrors.push("Invalid email")
+            hasErrors = true
+          } else if (seenEmails.has(email.toLowerCase())) {
+            rowErrors.push("Duplicate email")
+            hasErrors = true
+          } else {
+            seenEmails.add(email.toLowerCase())
+          }
+          const fieldData: Record<string, string> = {}
+          for (const f of requiredFields) {
+            const val = row[f]?.trim() ?? ""
+            if (!val) {
+              rowErrors.push(`"${f}" is empty`)
               hasErrors = true
             }
-            const fieldData: Record<string, string> = {}
-            for (const f of requiredFields) {
-              const val = row[f]?.trim() ?? ""
-              if (!val) {
-                rowErrors.push(`"${f}" is empty`)
-                hasErrors = true
-              }
-              fieldData[f] = val
-            }
-            rows.push({ email, fieldData, _rowIndex: i, _errors: rowErrors })
-          })
+            fieldData[f] = val
+          }
+          rows.push({ email, fieldData, _rowIndex: i, _errors: rowErrors })
+        })
 
         if (rows.length === 0) {
           errors.push("No data rows found in CSV.")
