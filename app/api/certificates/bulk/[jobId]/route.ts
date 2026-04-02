@@ -36,16 +36,16 @@ export async function GET(
     if (job.issuerId !== issuerId) return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
     // Batch lookup recipient names from users table
-    const emails = job.issuedCertificates.map((c) => c.receiverEmail);
+    const emails = job.issuedCertificates.map((c) => c.receiverEmail.toLowerCase());
     const users = await prisma.user.findMany({
       where: { email: { in: emails } },
       select: { email: true, fullName: true },
     });
-    const userMap = Object.fromEntries(users.map((u) => [u.email, u.fullName]));
+    const userMap = Object.fromEntries(users.map((u) => [u.email.toLowerCase(), u.fullName]));
 
     const certificates = job.issuedCertificates.map((cert) => ({
       ...cert,
-      recipientName: userMap[cert.receiverEmail] ?? null,
+      recipientName: userMap[cert.receiverEmail.toLowerCase()] ?? null,
     }));
 
     return NextResponse.json({ job: { ...job, issuedCertificates: certificates } });
