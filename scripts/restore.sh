@@ -72,6 +72,10 @@ if [[ -d "${BACKUP_DIR}/uploads" ]]; then
     echo "[restore] [1/4] Restoring uploads to ${TARGET} ..."
     rm -rf "$TARGET"
     cp -r "${BACKUP_DIR}/uploads" "$TARGET"
+    # The app container runs as uid 1001 ("nextjs" in the Dockerfile) — match
+    # ownership here so it can still write into uploads/cars (pin locks, new
+    # uploads, etc.) after a restore done as root.
+    chown -R 1001:1001 "$TARGET"
   else
     echo "[restore] [1/4] Skipped uploads (kept existing)."
   fi
