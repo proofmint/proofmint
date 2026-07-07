@@ -60,6 +60,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: proofmint-app:latest
     container_name: proofmint-app
     restart: unless-stopped
     env_file:
@@ -74,6 +75,36 @@ services:
         condition: service_healthy
       vault:
         condition: service_started
+      ipfs:
+        condition: service_started
+    networks:
+      - proofmint
+
+  pin-ipfs-cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: proofmint-app:latest
+    container_name: proofmint-pin-ipfs-cron
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+    entrypoint: ["/bin/sh", "-c"]
+    # No system cron daemon in the runner image — a sleep loop is simpler
+    # than adding one just for a single hourly job. pin:ipfs is idempotent
+    # (skips already-pinned CIDs), so overlapping/late runs are harmless.
+    command:
+      - |
+        while true; do
+          echo "[$(date -Iseconds)] running pnpm pin:ipfs";
+          pnpm pin:ipfs;
+          sleep 3600;
+        done
+    depends_on:
+      mysql:
+        condition: service_healthy
       ipfs:
         condition: service_started
     networks:
