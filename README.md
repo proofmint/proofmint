@@ -36,9 +36,6 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
 
-# Storacha Commands 
+## Running the full stack with Docker
 
-```bash
-storacha key create
-storacha delegation create did:key:z6MkfRLL3xpn33G8qJP746Mkxz366ChZc84Lj6KuDRAzFWGZ -c space/blob/add -c space/index/add -c upload/add -c filecoin/offer -c upload/list --base64
-```
+See [docs/DOCKER.md](./docs/DOCKER.md) for containerized setup (app, MySQL, Vault, IPFS), backups, and restoring on a new server.

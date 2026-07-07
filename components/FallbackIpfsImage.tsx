@@ -16,7 +16,7 @@ export function FallbackIpfsImage({
   type,
   ...props
 }: FallbackIpfsImageProps) {
-  const localUrl = `/api/uploads/${type}s/${cid}`;
+  const localUrl = `/api/uploads/images/${cid}`;
   const gatewayUrl = `${IPFS_GATEWAY}/${cid}`;
   const [src, setSrc] = useState(localUrl);
   const [triedFallback, setTriedFallback] = useState(false);

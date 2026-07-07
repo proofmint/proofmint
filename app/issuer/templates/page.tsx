@@ -148,7 +148,7 @@ export default function TemplatesPage() {
                 <div className="aspect-video bg-gray-100 rounded-lg mb-3 overflow-hidden relative">
                   {template?.backgroundImageUrl ? (
                     <img
-                      src={`/api/uploads/certificates/templates/${template.backgroundImageUrl}`}
+                      src={`/api/uploads/templates/${template.backgroundImageUrl}`}
                       alt={template?.templateName ?? "Certificate template"}
                       className="w-full h-full object-cover"
                     />

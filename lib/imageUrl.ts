@@ -2,11 +2,11 @@ import "server-only";
 import { APPLICATION_HOST } from "./const";
 
 export function badgeImageUrl(cid: string): string {
-  return `/api/uploads/badges/${cid}`;
+  return `/api/uploads/images/${cid}`;
 }
 
 export function certificateImageUrl(cid: string): string {
-  return `/api/uploads/certificates/${cid}`;
+  return `/api/uploads/images/${cid}`;
 }
 
 export function absoluteBadgeImageUrl(cid: string): string {

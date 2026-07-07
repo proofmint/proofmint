@@ -10,10 +10,7 @@ import { calculateSHA256, getEmailsHash } from "@/lib/utils";
 import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
 import { cleanString } from "@/lib/utils";
-import { storeAsCAR } from "@/lib/car";
-import { BADGES_PATH } from "@/lib/uploads";
-import fs from "fs/promises";
-import path from "path";
+import { storeAsCAR, storeMetadataAsCAR, saveImageFile } from "@/lib/car";
 import { isValidEmail } from "@/lib/validators";
 
 const createBadgeSchema = z.object({
@@ -172,7 +169,7 @@ export async function POST(req: NextRequest) {
     const imageCid = await storeAsCAR(new Uint8Array(imageBuffer));
 
     // Save local copy with correct extension
-    await fs.writeFile(path.join(BADGES_PATH, `${imageCid}.${ext}`), imageBuffer);
+    await saveImageFile(imageCid, imageBuffer, ext);
 
     const imageHash = await calculateSHA256(imageBuffer.buffer as ArrayBuffer);
 
@@ -189,7 +186,7 @@ export async function POST(req: NextRequest) {
       properties: customProperties,
     };
 
-    const metadataCid = await storeAsCAR(new TextEncoder().encode(JSON.stringify(metadata)));
+    const metadataCid = await storeMetadataAsCAR(metadata);
 
     const suggestedParams = await algodClient.getTransactionParams().do();
     const group = [

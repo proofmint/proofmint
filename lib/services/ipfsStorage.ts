@@ -1,20 +1,17 @@
-import { storeAsCAR } from '../car';
-import { CERTIFICATES_PATH } from '../uploads';
+import { storeAsCAR, storeMetadataAsCAR, saveImageFile } from '../car';
 import { certificateImageUrl } from '../imageUrl';
 import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
 import { IPFSUploadResult, CertificateMetadata } from '../types/certificate';
 
 /**
  * IPFS Storage Service
- * 
- * Handles uploading certificate images and metadata to IPFS via Storacha.
- * Implements ARC3 standard for Algorand NFT metadata.
+ *
+ * Handles storing certificate images and metadata as local CARs, pinned to
+ * our own IPFS node. Implements ARC3 standard for Algorand NFT metadata.
  */
 
 /**
- * Upload an image buffer to IPFS via Storacha
+ * Store an image buffer as a local CAR, pinned to our own IPFS node
  * 
  * @param imageBuffer - The image data as a Buffer
  * @param filename - The filename for the image (e.g., "certificate.png")
@@ -30,7 +27,7 @@ export async function uploadImage(
     const cid = await storeAsCAR(new Uint8Array(imageBuffer));
 
     // Save local copy
-    await fs.writeFile(path.join(CERTIFICATES_PATH, `${cid}.png`), imageBuffer);
+    await saveImageFile(cid, imageBuffer, 'png');
 
     console.log(`[IPFSStorage] Stored image as CAR: ${cid}`);
 
@@ -56,7 +53,7 @@ export function calculateImageHash(imageBuffer: Buffer): string {
 }
 
 /**
- * Upload certificate metadata to IPFS via Storacha
+ * Store certificate metadata as a local CAR, pinned to our own IPFS node
  * Formats metadata according to ARC3 standard for Algorand NFTs
  * 
  * @param metadata - Certificate metadata object
@@ -73,7 +70,7 @@ export async function uploadMetadata(
       throw new Error('Metadata must include name, image, and image_integrity fields');
     }
 
-    const cid = await storeAsCAR(new TextEncoder().encode(JSON.stringify(metadata)));
+    const cid = await storeMetadataAsCAR(metadata);
 
     console.log(`[IPFSStorage] Stored metadata as CAR: ${cid}`);
 

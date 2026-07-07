@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+uploads
+docker
+.git
+.env
+.env.*
+!.env.example
+vault-seal-keys.json
+*.log
+.claude
+.codegraph
+.vscode
+.idea
+README.md
+docs

@@ -1,0 +1,76 @@
+name: proofmint
+
+networks:
+  proofmint:
+    driver: bridge
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: proofmint-mysql
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./docker/mysql/data:/var/lib/mysql
+    ports:
+      - "33061:3306"
+    networks:
+      - proofmint
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  vault:
+    image: hashicorp/vault:latest
+    container_name: proofmint-vault
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "18200:8200"
+    volumes:
+      - ./docker/vault/config:/vault/config:ro
+      - ./docker/vault/data/file:/vault/file
+      - ./docker/vault/data/logs:/vault/logs
+    entrypoint: vault server -config=/vault/config/vault.json
+    networks:
+      - proofmint
+
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: proofmint-ipfs
+    restart: unless-stopped
+    ports:
+      - "14001:4001"       # swarm (p2p, safe to expose publicly)
+      - "127.0.0.1:15001:5001"  # RPC API — host-only, never expose publicly
+      - "18080:8080"       # HTTP gateway
+    volumes:
+      - ./docker/ipfs/data:/data/ipfs
+    networks:
+      - proofmint
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: proofmint-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+      - ./vault-seal-keys.json:/app/vault-seal-keys.json
+    ports:
+      - "13000:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      vault:
+        condition: service_started
+      ipfs:
+        condition: service_started
+    networks:
+      - proofmint

@@ -35,9 +35,8 @@ import { fileTypeFromBuffer } from "file-type";
 
 const UPLOADS_PATH =
   process.env.UPLOADS_PATH || path.join(process.cwd(), "uploads");
-const BADGES_PATH = path.join(UPLOADS_PATH, "badges");
-const CERTIFICATES_PATH = path.join(UPLOADS_PATH, "certificates");
-const BACKUP_DIR = path.join(UPLOADS_PATH, "ipfs-backup");
+const IMAGES_PATH = path.join(UPLOADS_PATH, "images");
+const BACKUP_DIR = path.join(UPLOADS_PATH, "cars");
 const IPFS_GATEWAY = (
   process.env.NEXT_PUBLIC_IPFS_GATEWAY || "https://ipfs.io/ipfs"
 ).replace(/\/+$/, "");
@@ -168,8 +167,7 @@ async function downloadRawImage(
 async function main() {
   console.log("Ensure Local Images & CAR Backups");
   console.log("=".repeat(50));
-  console.log(`Badges dir      : ${BADGES_PATH}`);
-  console.log(`Certificates dir: ${CERTIFICATES_PATH}`);
+  console.log(`Images dir      : ${IMAGES_PATH}`);
   console.log(`Backup dir      : ${BACKUP_DIR}`);
   console.log(`IPFS gateway    : ${IPFS_GATEWAY}`);
 
@@ -224,8 +222,8 @@ async function main() {
   console.log("\n[2/2] Extracting images from CAR files...");
 
   const imageWork: Array<{ cid: string; destDir: string }> = [
-    ...[...badgeImageCids].map((cid) => ({ cid, destDir: BADGES_PATH })),
-    ...[...certImageCids].map((cid) => ({ cid, destDir: CERTIFICATES_PATH })),
+    ...[...badgeImageCids].map((cid) => ({ cid, destDir: IMAGES_PATH })),
+    ...[...certImageCids].map((cid) => ({ cid, destDir: IMAGES_PATH })),
   ];
 
   for (const { cid, destDir } of imageWork) {

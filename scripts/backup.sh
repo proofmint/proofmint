@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # =============================================================================
 # ProofMint – Production Backup
-# Backs up: uploads, MySQL database, HashiCorp Vault volumes + seal keys
+# Backs up: uploads, MySQL database, Vault data + seal keys, IPFS node data
 # Output:   <parent-of-project>/backups/proofmint-backup-<timestamp>.tar.gz
+#
+# Assumes the docker-compose stack in this repo (docker-compose.yml) — the
+# mysql/vault/ipfs data directories under ./docker/ are backed up directly.
 # =============================================================================
 set -euo pipefail
 
-# ── Vault project paths (relative to this project's root) ────────────────────
-# Adjust these to match where your vault project folder lives
-VAULT_DEV_RELPATH="../hashi"    # ← set your dev vault path
-VAULT_PROD_RELPATH="../hashi"  # ← set your prod vault path
+# Container name of the mysql service in docker-compose.yml
+DOCKER_MYSQL_CONTAINER="${DOCKER_MYSQL_CONTAINER:-proofmint-mysql}"
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,7 +24,7 @@ ARCHIVE="${BACKUPS_DIR}/${BACKUP_NAME}.tar.gz"
 
 mkdir -p "$BACKUPS_DIR"
 
-# ── Load .env ─────────────────────────────────────────────────────────────────
+# ── Load .env ─────────────────────────────────────────────────────
 ENV_FILE="${PROJECT_DIR}/.env"
 if [[ -f "$ENV_FILE" ]]; then
   set -a
@@ -40,11 +41,11 @@ mkdir -p "${STAGING_DIR}"
 # ── 1. Uploads ────────────────────────────────────────────────────────────────
 UPLOADS_DIR="${UPLOADS_PATH:-${PROJECT_DIR}/uploads}"
 if [[ -d "$UPLOADS_DIR" ]]; then
-  echo "[backup] [1/3] Copying uploads from ${UPLOADS_DIR} ..."
+  echo "[backup] [1/4] Copying uploads from ${UPLOADS_DIR} ..."
   cp -r "$UPLOADS_DIR" "${STAGING_DIR}/uploads"
   echo "[backup]       $(du -sh "${STAGING_DIR}/uploads" | cut -f1) copied"
 else
-  echo "[backup] [1/3] WARNING: uploads directory not found, skipping"
+  echo "[backup] [1/4] WARNING: uploads directory not found, skipping"
 fi
 
 # ── 2. Database ───────────────────────────────────────────────────────────────
@@ -69,57 +70,65 @@ if [[ -n "$DB_URL" ]]; then
     console.log("DB_NAME=" + q(dec(m[5])));
   ')"
 
-  echo "[backup] [2/3] Dumping database '${DB_NAME}' @ ${DB_HOST}:${DB_PORT} ..."
+  echo "[backup] [2/4] Dumping database '${DB_NAME}' @ ${DB_HOST}:${DB_PORT} ..."
 
-  # Pass password via MYSQL_PWD env var — avoids shell expansion of special chars
-  # and suppresses the "password on command line" warning
-  MYSQL_PWD="$DB_PASS" mysqldump \
-    -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" \
-    --single-transaction \
-    --routines \
-    --triggers \
-    --events \
-    --no-tablespaces \
-    --set-gtid-purged=OFF \
-    "$DB_NAME" > "${STAGING_DIR}/database.sql"
+  MYSQLDUMP_FLAGS=(--single-transaction --routines --triggers --events --no-tablespaces --set-gtid-purged=OFF)
+
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$DOCKER_MYSQL_CONTAINER"; then
+    # mysql (and mysqldump) only exist inside the container, so run it there via
+    # docker exec, connecting over the container's own loopback.
+    echo "[backup]       using mysqldump inside docker container '${DOCKER_MYSQL_CONTAINER}'"
+    docker exec -e MYSQL_PWD="$DB_PASS" "$DOCKER_MYSQL_CONTAINER" \
+      mysqldump -h 127.0.0.1 -P 3306 -u "$DB_USER" \
+      "${MYSQLDUMP_FLAGS[@]}" \
+      "$DB_NAME" > "${STAGING_DIR}/database.sql"
+  else
+    # Fallback: host has mysqldump installed natively.
+    # Pass password via MYSQL_PWD env var — avoids shell expansion of special
+    # chars and suppresses the "password on command line" warning
+    MYSQL_PWD="$DB_PASS" mysqldump \
+      -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" \
+      "${MYSQLDUMP_FLAGS[@]}" \
+      "$DB_NAME" > "${STAGING_DIR}/database.sql"
+  fi
 
   echo "[backup]       $(du -sh "${STAGING_DIR}/database.sql" | cut -f1) written"
 else
-  echo "[backup] [2/3] WARNING: DATABASE_URL not set, skipping database backup"
+  echo "[backup] [2/4] WARNING: DATABASE_URL not set, skipping database backup"
 fi
 
-# ── 3. HashiCorp Vault ────────────────────────────────────────────────────────
-NODE_ENV_VAL="${NODE_ENV:-development}"
-if [[ "$NODE_ENV_VAL" == "production" ]]; then
-  VAULT_REL="$VAULT_PROD_RELPATH"
-else
-  VAULT_REL="$VAULT_DEV_RELPATH"
-fi
+# ── 3. Vault (data + seal keys) ───────────────────────────────────────────────
+VAULT_DATA_DIR="${PROJECT_DIR}/docker/vault/data"
+SEAL_KEYS_FILE="${PROJECT_DIR}/vault-seal-keys.json"
 
-VAULT_PROJECT_DIR="$(cd "${PROJECT_DIR}/${VAULT_REL}" 2>/dev/null && pwd)" || true
-
-if [[ -n "${VAULT_PROJECT_DIR:-}" && -d "$VAULT_PROJECT_DIR" ]]; then
-  echo "[backup] [3/3] Backing up Vault (${NODE_ENV_VAL}): ${VAULT_PROJECT_DIR}"
+if [[ -d "$VAULT_DATA_DIR" ]]; then
+  echo "[backup] [3/4] Copying Vault data from ${VAULT_DATA_DIR} ..."
   mkdir -p "${STAGING_DIR}/vault"
-
-  if [[ -d "${VAULT_PROJECT_DIR}/volumes" ]]; then
-    cp -r "${VAULT_PROJECT_DIR}/volumes" "${STAGING_DIR}/vault/volumes"
-    echo "[backup]       volumes: $(du -sh "${STAGING_DIR}/vault/volumes" | cut -f1)"
-  else
-    echo "[backup]       WARNING: volumes/ not found, skipping"
-  fi
-
-  if [[ -f "${VAULT_PROJECT_DIR}/vault-seal-keys.json" ]]; then
-    cp "${VAULT_PROJECT_DIR}/vault-seal-keys.json" "${STAGING_DIR}/vault/vault-seal-keys.json"
-    echo "[backup]       vault-seal-keys.json copied"
-  else
-    echo "[backup]       WARNING: vault-seal-keys.json not found, skipping"
-  fi
+  cp -r "$VAULT_DATA_DIR" "${STAGING_DIR}/vault/data"
+  echo "[backup]       $(du -sh "${STAGING_DIR}/vault/data" | cut -f1) copied"
 else
-  echo "[backup] [3/3] WARNING: Vault project not found at ${PROJECT_DIR}/${VAULT_REL}, skipping"
+  echo "[backup] [3/4] WARNING: ${VAULT_DATA_DIR} not found, skipping"
 fi
 
-# ── 4. Archive & cleanup ──────────────────────────────────────────────────────
+if [[ -f "$SEAL_KEYS_FILE" ]]; then
+  mkdir -p "${STAGING_DIR}/vault"
+  cp "$SEAL_KEYS_FILE" "${STAGING_DIR}/vault/vault-seal-keys.json"
+  echo "[backup]       vault-seal-keys.json copied"
+else
+  echo "[backup]       WARNING: vault-seal-keys.json not found, skipping"
+fi
+
+# ── 4. IPFS node data ─────────────────────────────────────────────────────────
+IPFS_DATA_DIR="${PROJECT_DIR}/docker/ipfs/data"
+if [[ -d "$IPFS_DATA_DIR" ]]; then
+  echo "[backup] [4/4] Copying IPFS node data from ${IPFS_DATA_DIR} ..."
+  cp -r "$IPFS_DATA_DIR" "${STAGING_DIR}/ipfs-data"
+  echo "[backup]       $(du -sh "${STAGING_DIR}/ipfs-data" | cut -f1) copied"
+else
+  echo "[backup] [4/4] WARNING: ${IPFS_DATA_DIR} not found, skipping (uploads/cars already has every CAR — pnpm pin:ipfs can re-pin them into a fresh node)"
+fi
+
+# ── 5. Archive & cleanup ──────────────────────────────────────────────────────
 echo "[backup] Compressing → ${ARCHIVE} ..."
 tar -czf "$ARCHIVE" -C "$BACKUPS_DIR" "$BACKUP_NAME"
 rm -rf "$STAGING_DIR"
