@@ -67,7 +67,7 @@ confirm_overwrite() {
 
 # ── 1. Uploads ────────────────────────────────────────────────────────────────
 if [[ -d "${BACKUP_DIR}/uploads" ]]; then
-  TARGET="${UPLOADS_PATH:-${PROJECT_DIR}/uploads}"
+  TARGET="${${PROJECT_DIR}/uploads}"
   if confirm_overwrite "$TARGET"; then
     echo "[restore] [1/4] Restoring uploads to ${TARGET} ..."
     rm -rf "$TARGET"
