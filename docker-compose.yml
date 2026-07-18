@@ -30,7 +30,10 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: mysql
     ports:
-      - "127.0.0.1:18081:8080"  # full DB access — host-only, never expose publicly
+      - "127.0.0.1:18081:8080"  # full DB access — host-only; reachable publicly only via the
+                                # obscure db-<slug>.proofmint.app cloudflared tunnel hostname
+                                # (no auth beyond Adminer's own login — keep that hostname secret)
+
     depends_on:
       mysql:
         condition: service_healthy

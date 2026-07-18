@@ -84,7 +84,7 @@ export default function ClaimPage() {
       router.push("/login");
       return;
     }
-
+    if(isClaiming) return;
     setIsClaiming(true);
     const res = await fetch(`/api/badges/claim/${claimId}`, {
       method: "POST",

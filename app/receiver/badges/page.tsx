@@ -18,7 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Award, Search, ExternalLink, Calendar, Loader2, Copy } from "lucide-react";
+import {
+  Award,
+  Search,
+  ExternalLink,
+  Calendar,
+  Loader2,
+  Copy,
+  Download,
+} from "lucide-react";
 import { Share2 } from "lucide-react";
 import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
 
@@ -42,7 +50,9 @@ export default function BadgesPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [badges, setBadges] = useState<Badge[]>([]);
-  const [loadingById, setLoadingById] = useState<Record<string, "accept" | "reject">>({});
+  const [loadingById, setLoadingById] = useState<
+    Record<string, "accept" | "reject">
+  >({});
   const [copiedBadgeId, setCopiedBadgeId] = useState<string | null>(null);
 
   const filteredBadges = badges.filter((item) => {
@@ -82,8 +92,8 @@ export default function BadgesPage() {
                   ? `https://lora.algokit.io/${network}/transaction/${updatedBadge.transactionHash}`
                   : undefined,
               }
-            : badge
-        )
+            : badge,
+        ),
       );
     } catch (err) {
       console.error(err);
@@ -103,6 +113,29 @@ export default function BadgesPage() {
       setTimeout(() => setCopiedBadgeId(null), 2000); // Reset after 2 seconds
     } catch (err) {
       console.error("Failed to copy link:", err);
+    }
+  };
+
+  const handleDownloadBadge = async (badge: Badge) => {
+    if (!badge.imageCid) return;
+
+    try {
+      const response = await fetch(`/api/uploads/images/${badge.imageCid}`);
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.statusText}`);
+      }
+
+      const imageBlob = await response.blob();
+      const blobUrl = URL.createObjectURL(imageBlob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${badge.title || "badge"}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Failed to download the badge:", error);
     }
   };
 
@@ -127,7 +160,7 @@ export default function BadgesPage() {
                 acc[prop.key] = prop.value;
                 return acc;
               },
-              {}
+              {},
             ) ?? {},
           claimedDate: item.claimedAt,
           rejectedDate: null,
@@ -211,7 +244,11 @@ export default function BadgesPage() {
                     className="object-contain"
                   />
                 ) : (
-                  <img src="/placeholder.png" alt={badge.title} className="object-contain w-full h-full" />
+                  <img
+                    src="/placeholder.png"
+                    alt={badge.title}
+                    className="object-contain w-full h-full"
+                  />
                 )}
               </div>
               <CardTitle className="text-center text-lg font-semibold text-gray-800">
@@ -253,8 +290,8 @@ export default function BadgesPage() {
                       badge.status === "CLAIMED"
                         ? "default"
                         : badge.status === "PENDING"
-                        ? "secondary"
-                        : "destructive"
+                          ? "secondary"
+                          : "destructive"
                     }
                   >
                     {badge.status}
@@ -263,20 +300,31 @@ export default function BadgesPage() {
                     <Calendar className="h-3 w-3 mr-1" />
                     {badge.status === "CLAIMED" && badge.claimedDate
                       ? `Claimed ${new Date(
-                          badge.claimedDate
+                          badge.claimedDate,
                         ).toLocaleDateString()}`
                       : badge.status === "REJECTED" && badge.rejectedDate
-                      ? `Rejected ${new Date(
-                          badge.rejectedDate
-                        ).toLocaleDateString()}`
-                      : badge.issuedDate
-                      ? `Issued ${new Date(
-                          badge.issuedDate
-                        ).toLocaleDateString()}`
-                      : null}
+                        ? `Rejected ${new Date(
+                            badge.rejectedDate,
+                          ).toLocaleDateString()}`
+                        : badge.issuedDate
+                          ? `Issued ${new Date(
+                              badge.issuedDate,
+                            ).toLocaleDateString()}`
+                          : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 pt-2">
+                  {badge.status === "CLAIMED" && badge.imageCid && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-transparent"
+                      disabled={!badge.imageCid}
+                      onClick={() => handleDownloadBadge(badge)}
+                    >
+                      <Download className="h-4 w-4 mr-1" /> Download
+                    </Button>
+                  )}
                   {badge.status === "PENDING" && (
                     <>
                       <Button
@@ -347,7 +395,7 @@ export default function BadgesPage() {
                         const text = `I just earned the ${badge.title} badge on ProofMint!`;
                         const shareUrl = `${window.location.origin}/share/badge/${badge.id}`;
                         const xUrl = `/api/share/twitter?text=${encodeURIComponent(
-                          text
+                          text,
                         )}&url=${encodeURIComponent(shareUrl)}`;
                         window.open(xUrl, "_blank");
                       }}
@@ -364,7 +412,7 @@ export default function BadgesPage() {
                         const text = `I just earned the ${badge.title} badge on ProofMint!`;
                         const shareUrl = `${window.location.origin}/share/badge/${badge.id}`;
                         const liUrl = `/api/share/linkedin?url=${encodeURIComponent(
-                          shareUrl
+                          shareUrl,
                         )}&text=${encodeURIComponent(text)}`;
                         window.open(liUrl, "_blank");
                       }}
