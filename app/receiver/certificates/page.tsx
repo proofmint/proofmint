@@ -122,7 +122,7 @@ export default function CertificatesPage() {
 
   const handleDownloadCertificate = async (certificate: Certificate) => {
     if (!certificate.imageCid) return;
-    const downloadUrl = `/api/uploads/${certificate.imageCid}`;
+    const downloadUrl = `/api/uploads/images/${certificate.imageCid}`;
     try {
       const response = await fetch(downloadUrl);
       if (!response.ok) {
