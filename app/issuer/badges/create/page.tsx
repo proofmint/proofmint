@@ -28,6 +28,8 @@ import { useSession } from "@/contexts/SessionContext";
 import Papa from "papaparse";
 import { useRouter } from "next/navigation";
 import { isValidEmail, uniqueValidEmails } from "@/lib/validators";
+import X402ModeToggle from "@/components/x402-mode-toggle";
+import { fileToDataUrl, propertiesObject, x402Post } from "@/lib/x402/browser";
 
 const BADGE_MINT_COST_CREDITS = 1; // Cost per badge in credits
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -61,6 +63,7 @@ export default function CreateBadgePage() {
   );
   const [isCreditLoading, setIsCreditLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [x402Mode, setX402Mode] = useState(false);
 
   useEffect(() => {
     const fetchCredits = async () => {
@@ -205,6 +208,52 @@ export default function CreateBadgePage() {
     setCustomProperties(customProperties.filter((_, i) => i !== index));
   };
 
+  /**
+   * Paid path: mints through POST /api/x402/badges/mint, which charges USDC per
+   * badge unit. One ASA is created with `count` units, exactly as the credit
+   * path does, so both distribution methods carry over unchanged.
+   */
+  const submitViaX402 = async (form: HTMLFormElement) => {
+    setIsLoading(true);
+    try {
+      const result = await x402Post(
+        `/api/x402/badges/mint?count=${recipientCount}`,
+        {
+          badgeName: form.badgeName.value,
+          unitName: form.unitName.value,
+          description: form.description.value,
+          badgeType: badgeType || undefined,
+          imageBase64: await fileToDataUrl(badgeImage!),
+          distributionMethod,
+          ...(distributionMethod === "magic"
+            ? { claimLimit: recipientCount }
+            : { recipientEmails: validRecipientEmails }),
+          properties: propertiesObject(customProperties),
+        }
+      );
+
+      if (!result.ok) {
+        throw new Error(result.data?.error || "Paid badge minting failed");
+      }
+
+      toast({
+        title: result.paid ? "Badges minted and paid in USDC" : "Badges minted",
+        description: `Asset ${result.data.assetId} (${result.data.count} badge${
+          result.data.count === 1 ? "" : "s"
+        })`,
+      });
+      router.push("/issuer/badges");
+    } catch (error: any) {
+      toast({
+        title: "Error Creating Badge",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -221,6 +270,11 @@ export default function CreateBadgePage() {
           "Please fix the errors and ensure you have sufficient balance.",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (x402Mode) {
+      await submitViaX402(form);
       return;
     }
 
@@ -572,6 +626,15 @@ export default function CreateBadgePage() {
                     </>
                   )}
                 </div>
+
+                <div className="mt-4">
+                  <X402ModeToggle
+                    kind="badge"
+                    quantity={recipientCount}
+                    enabled={x402Mode}
+                    onChange={setX402Mode}
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -590,6 +653,8 @@ export default function CreateBadgePage() {
           >
             {isLoading
               ? "Creating..."
+              : x402Mode
+              ? `Create & Pay for ${recipientCount} Badges in USDC`
               : `Create & Issue ${recipientCount} Badges`}
           </Button>
         </div>

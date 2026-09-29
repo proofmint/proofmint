@@ -24,6 +24,7 @@ import {
   Settings,
   LogOut,
   User,
+  KeyRound,
 } from "lucide-react"
 import { useSession } from "@/contexts/SessionContext"
 import Image from "next/image"
@@ -54,6 +55,11 @@ const menuItems = [
     title: "Purchase Credits",
     url: "/issuer/credits",
     icon: Shield,
+  },
+  {
+    title: "API Keys",
+    url: "/issuer/api-keys",
+    icon: KeyRound,
   },
   {
     title: "Profile",

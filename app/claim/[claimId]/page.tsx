@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge, BadgeClaimLink, Issuer, User } from "@prisma/client";
 import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
-import { CheckCircle, Clock, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useSession } from "@/contexts/SessionContext";
+import { x402Post } from "@/lib/x402/browser";
 
 type ClaimDetails = BadgeClaimLink & {
   badge: Badge;
@@ -53,10 +54,11 @@ export default function ClaimPage() {
         if (!res.ok) throw new Error("Failed to fetch badge details");
         const data = await res.json();
         setClaim(data);
-      } catch (error: any) {
+      } catch (error) {
         toast({
           title: "Error",
-          description: error.message,
+          description:
+            error instanceof Error ? error.message : "Failed to fetch badge details",
           variant: "destructive",
         });
       } finally {
@@ -84,31 +86,42 @@ export default function ClaimPage() {
       router.push("/login");
       return;
     }
-    if(isClaiming) return;
+    if (isClaiming) return;
     setIsClaiming(true);
-    const res = await fetch(`/api/badges/claim/${claimId}`, {
-      method: "POST",
-    });
+    try {
+      const result = await x402Post(
+        `/api/x402/badges/claim/${claimId}`,
+        {},
+        { payEndpoint: "/api/receiver/x402/pay" }
+      );
 
-    if (!res.ok) {
+      if (!result.ok) {
+        toast({
+          title: "Error",
+          description:
+            result.data?.error ||
+            result.data?.message ||
+            "Failed to claim badge",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Badge claimed successfully!",
+      });
+      router.push(`/receiver/badges`);
+    } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to claim badge",
+        description:
+          error instanceof Error ? error.message : "Failed to claim badge",
         variant: "destructive",
       });
+    } finally {
       setIsClaiming(false);
-      return;
     }
-
-    const data = await res.json();
-
-    toast({
-      title: "Success",
-      description: "Badge claimed successfully!",
-    });
-
-    setIsClaiming(false);
-    router.push(`/receiver/badges`);
   };
 
   if (isLoading) {
@@ -131,49 +144,45 @@ export default function ClaimPage() {
   }
 
   return (
-    <div className="w-fit mx-auto py-8 px-4">
+    <div className="mx-auto w-full max-w-md px-4 py-8">
       <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">
-            <div className="flex">
-              <div className="flex-1">
-                <div className="flex items-center">
-                  {claim.badge.name}
-                  <span className="text-sm ml-2 text-muted-foreground">
-                    {claim.badge.unitName}
-                  </span>
-                </div>
-                <div className="flex mt-2">
-                  <span className="text-sm text-muted-foreground">
-                    Issued by{" "}
-                    <span className="font-bold">
-                      {claim.issuer.user.organizationName}
-                    </span>
-                  </span>
-                </div>
-              </div>
-              <div className="items-end justify-start flex flex-col text-[18px]">
-                <span className="whitespace-nowrap">
-                  <span className="font-bold">
-                    {claim.claimCount}/{claim.limit}
-                  </span>
-                  <span> claimed</span>
+        <CardHeader className="gap-2">
+          <div className="flex items-start justify-between gap-4">
+            <CardTitle className="min-w-0 text-2xl leading-tight">
+              {claim.badge.name}
+              {claim.badge.unitName ? (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  {claim.badge.unitName}
                 </span>
-              </div>
-            </div>
-          </CardTitle>
+              ) : null}
+            </CardTitle>
+            <p className="shrink-0 pt-1 text-sm text-muted-foreground whitespace-nowrap">
+              <span className="font-semibold text-foreground">
+                {claim.claimCount}/{claim.limit}
+              </span>{" "}
+              claimed
+            </p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Issued by{" "}
+            <span className="font-semibold text-foreground">
+              {claim.issuer.user.organizationName}
+            </span>
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="relative aspect-square w-full">
+          <div className="relative aspect-square w-full overflow-hidden rounded-md">
             <FallbackIpfsImage
               cid={claim.badge.imageCid}
               type="badge"
               alt={claim.badge.name}
               fill
-              className="rounded-md object-cover"
+              className="object-cover"
             />
           </div>
-          <p className="text-muted-foreground">{claim.badge.description}</p>
+          {claim.badge.description ? (
+            <p className="text-muted-foreground">{claim.badge.description}</p>
+          ) : null}
           <Button
             onClick={handleClaim}
             className="w-full"

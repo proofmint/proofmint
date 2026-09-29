@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Share2 } from "lucide-react";
 import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
+import { normalizeCustomProperties } from "@/lib/badgeProperties";
 
 type Badge = {
   id: string;
@@ -154,14 +155,12 @@ export default function BadgesPage() {
           imageCid: item.badge.imageCid,
           status: item.status,
           type: item.badge.badgeType,
-          properties:
-            item.badge.customProperties?.reduce(
-              (acc: Record<string, string>, prop: any) => {
-                acc[prop.key] = prop.value;
-                return acc;
-              },
-              {},
-            ) ?? {},
+          properties: normalizeCustomProperties(
+            item.badge.customProperties,
+          ).reduce((acc: Record<string, string>, prop) => {
+            acc[prop.key] = prop.value;
+            return acc;
+          }, {}),
           claimedDate: item.claimedAt,
           rejectedDate: null,
           issuedDate: item.issuedAt,

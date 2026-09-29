@@ -47,4 +47,23 @@ export async function requireIssuer(req: NextRequest): Promise<{ payload: AuthPa
   }
 }
 
+export async function requireReceiver(
+  req: NextRequest
+): Promise<{ payload: AuthPayload } | { error: NextResponse }> {
+  const token = (await cookies()).get("token")?.value;
+  if (!token) {
+    return { error: NextResponse.json({ message: "Unauthorized" }, { status: 401 }) };
+  }
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    const auth = payload as AuthPayload;
+    if (auth.role !== "RECEIVER") {
+      return { error: NextResponse.json({ message: "Forbidden" }, { status: 403 }) };
+    }
+    return { payload: auth };
+  } catch {
+    return { error: NextResponse.json({ message: "Invalid token" }, { status: 401 }) };
+  }
+}
+
 

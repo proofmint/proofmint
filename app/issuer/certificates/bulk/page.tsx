@@ -36,6 +36,8 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
+import X402ModeToggle from "@/components/x402-mode-toggle"
+import { x402Post } from "@/lib/x402/browser"
 import Papa from "papaparse"
 
 interface DynamicField {
@@ -87,6 +89,7 @@ export default function BulkIssueCertificatePage() {
   const [newProperty, setNewProperty] = useState({ key: "", value: "" })
   const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [x402Mode, setX402Mode] = useState(false)
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
   const [bulkJob, setBulkJob] = useState<{ id: string; totalItems: number; status: string } | null>(null)
   const [previewState, setPreviewState] = useState<PreviewState | null>(null)
@@ -366,6 +369,46 @@ export default function BulkIssueCertificatePage() {
     }
 
     setIsLoading(true)
+
+    if (x402Mode) {
+      // Paid path: one USDC settlement covers the whole batch, priced from the
+      // `count` query parameter. The endpoint queues the same background job as
+      // the credit path and returns it to track.
+      try {
+        const recipients = validRows.map((row) => ({
+          recipientEmail: row.email,
+          fieldData: row.fieldData,
+        }))
+
+        const result = await x402Post(
+          `/api/x402/certificates/bulk?count=${recipients.length}`,
+          {
+            templateId: selectedTemplate.id,
+            certificateName: certificateName.trim(),
+            unitName: unitName.trim(),
+            description: description.trim(),
+            customProperties,
+            sendEmail,
+            recipients,
+          }
+        )
+        if (!result.ok) throw new Error(result.data?.error || "Failed to start bulk issuance")
+
+        // Same job state as the credit path, so both land on the tracking screen.
+        setBulkJob(result.data.job)
+        setCreditBalance((prev) => (prev ?? 0) - result.data.job.totalItems)
+        toast({
+          title: result.paid ? "Bulk job started and paid in USDC" : "Bulk job started!",
+          description: `Processing ${result.data.job.totalItems} certificates in the background.`,
+        })
+      } catch (error) {
+        toast({ title: "Failed to start bulk issuance", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" })
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
+
     try {
       const formData = new FormData()
       formData.append("templateId", selectedTemplate.id)
@@ -856,6 +899,14 @@ export default function BulkIssueCertificatePage() {
                       {errorRowCount} row{errorRowCount !== 1 ? "s" : ""} with errors will be skipped.
                     </div>
                   )}
+                  <div className="pt-2 max-w-md">
+                    <X402ModeToggle
+                      kind="certificate"
+                      quantity={validRowCount}
+                      enabled={x402Mode}
+                      onChange={setX402Mode}
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-3 flex-shrink-0">
                   <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
@@ -875,7 +926,9 @@ export default function BulkIssueCertificatePage() {
                       <>
                         <Upload className="h-4 w-4 mr-2" />
                         Issue {validRowCount} Certificate{validRowCount !== 1 ? "s" : ""}
-                        <span className="ml-2 text-xs opacity-80 font-normal">({validRowCount} credits)</span>
+                        <span className="ml-2 text-xs opacity-80 font-normal">
+                          ({validRowCount} credits{x402Mode ? " + USDC" : ""})
+                        </span>
                       </>
                     )}
                   </Button>

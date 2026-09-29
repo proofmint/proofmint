@@ -10,12 +10,16 @@ import algosdk from "algosdk";
 import { signTransactions } from "@/lib/vault";
 import { cleanString } from "@/lib/utils";
 import { storeAsCAR, storeMetadataAsCAR, saveImageFile } from "@/lib/car";
+import { deductCredits, refundCredits } from "@/lib/services/creditManager";
+import { TransactionType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
   const token = (await cookies()).get("token")?.value;
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  let deductedIssuerId: string | null = null;
 
   try {
     const secret = new TextEncoder().encode(JWT_SECRET);
@@ -93,6 +97,19 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    
+    const deduction = await deductCredits(
+      issuer.id,
+      1,
+      TransactionType.MINT_CERTIFICATE
+    );
+    if (!deduction.success) {
+      return NextResponse.json(
+        { error: deduction.error || "Failed to deduct credits" },
+        { status: 400 }
+      );
+    }
+    deductedIssuerId = issuer.id;
 
     const ext = mime.extension(mimeType) || "bin";
     const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
@@ -181,6 +198,9 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("Error creating certificate:", error);
+    if (deductedIssuerId) {
+      await refundCredits(deductedIssuerId, 1, TransactionType.MINT_CERTIFICATE);
+    }
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

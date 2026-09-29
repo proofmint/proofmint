@@ -3,6 +3,7 @@ import { APPLICATION_HOST, ALGORAND_NETWORK } from "@/lib/const";
 import type { Metadata } from "next";
 import { absoluteBadgeImageUrl } from "@/lib/imageUrl";
 import { FallbackIpfsImage } from "@/components/FallbackIpfsImage";
+import { normalizeCustomProperties } from "@/lib/badgeProperties";
 
 function getTransactionExplorerUrl(txHash: string): string {
   const network = ALGORAND_NETWORK.toLowerCase();
@@ -170,13 +171,12 @@ export default async function PublicBadgePage({
                 </a>
               </div>
             )}
-            {data.badge.customProperties &&
-              Array.isArray(data.badge.customProperties) &&
-              data.badge.customProperties.length > 0 && (
+            {normalizeCustomProperties(data.badge.customProperties).length >
+              0 && (
                 <div className="space-y-3">
                   <h3 className="text-base font-semibold">Badge Details</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {(data.badge.customProperties as Array<{ key: string, value: string }>).map((property, index) => (
+                    {normalizeCustomProperties(data.badge.customProperties).map((property, index) => (
                       <div
                         key={index}
                         className="rounded-lg border bg-gray-50 px-4 py-3 text-sm"

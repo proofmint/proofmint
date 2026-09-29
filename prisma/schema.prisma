@@ -55,6 +55,8 @@ model Issuer {
   creditTransactions     CreditTransaction[]
   issuedBadges           IssuedBadge[]           @relation("IssuerBadges")
   issuedCertificates     IssuedCertificate[]     @relation("IssuerCertificates")
+  apiKeys                IssuerApiKey[]
+  x402Payments           X402Payment[]
   user                   User                    @relation(fields: [userId], references: [id])
 
   @@map("Issuer")
@@ -155,9 +157,9 @@ model IssuedCertificate {
   claimedAt            DateTime?
   mintTransactionHash  String?
   claimTransactionHash String?
-  issuer            Issuer              @relation("IssuerCertificates", fields: [issuerId], references: [id])
-  job               BulkIssuanceJob?    @relation(fields: [jobId], references: [id])
-  template          CertificateTemplate @relation(fields: [templateId], references: [id])
+  issuer               Issuer              @relation("IssuerCertificates", fields: [issuerId], references: [id])
+  job                  BulkIssuanceJob?    @relation(fields: [jobId], references: [id])
+  template             CertificateTemplate @relation(fields: [templateId], references: [id])
 
   @@index([issuerId], map: "IssuedCertificate_issuerId_fkey")
   @@index([jobId], map: "IssuedCertificate_jobId_fkey")
@@ -328,13 +330,56 @@ model IpfsPinRecord {
 }
 
 model IpfsPin {
-  id        String        @id @default(cuid())
-  recordId  String
-  provider  String
-  pinnedAt  DateTime      @default(now())
-  record    IpfsPinRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  id       String        @id @default(cuid())
+  recordId String
+  provider String
+  pinnedAt DateTime      @default(now())
+  record   IpfsPinRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
 
   @@unique([recordId, provider])
   @@index([recordId])
   @@map("IpfsPin")
+}
+
+enum X402ProductKind {
+  BADGE
+  CERTIFICATE
+  CERTIFICATE_BULK
+  BADGE_CLAIM
+}
+
+model IssuerApiKey {
+  id         String    @id @default(cuid())
+  issuerId   String
+  name       String
+  keyHash    String    @unique
+  prefix     String
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  issuer     Issuer    @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+
+  @@index([issuerId])
+  @@map("IssuerApiKey")
+}
+
+model X402Payment {
+  id             String          @id @default(cuid())
+  kind           X402ProductKind
+  issuerId       String?
+  resource       String          @db.Text
+  network        String
+  asset          String
+  amountAtomic   String
+  payer          String?
+  payTo          String
+  settlementTxId String          @unique
+  quantity       Int             @default(1)
+  refId          String?
+  createdAt      DateTime        @default(now())
+  issuer         Issuer?         @relation(fields: [issuerId], references: [id])
+
+  @@index([issuerId])
+  @@index([createdAt])
+  @@map("X402Payment")
 }

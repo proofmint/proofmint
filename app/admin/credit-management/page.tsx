@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import UsdcWalletCard from "@/components/usdc-wallet-card";
 import {
   Plus,
   Wallet,
@@ -322,6 +323,13 @@ export default function AdminCreditManagementPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* x402 USDC revenue */}
+      <UsdcWalletCard
+        endpoint="/api/admin/x402/usdc"
+        title="x402 USDC revenue"
+        description="USDC collected from paid minting endpoints, held at X402_PAY_TO."
+      />
 
       {/* Additional Info */}
       <Card>

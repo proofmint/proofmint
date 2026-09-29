@@ -26,6 +26,7 @@ import { Copy, CheckCircle, Clock, XCircle, ArrowLeft } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { normalizeCustomProperties } from "@/lib/badgeProperties";
 
 type IssuedBadgeWithReceiver = IssuedBadge & {
   receiver: {
@@ -179,20 +180,21 @@ export default function BadgeDetailPage() {
                 <h3 className="font-semibold">Badge Type</h3>
                 <UiBadge variant="secondary">{badge.badgeType}</UiBadge>
               </div>
-              {Array.isArray(badge.customProperties) &&
-                badge.customProperties.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="font-semibold">Custom Properties</h3>
-                    <div className="text-sm space-y-1">
-                      {badge.customProperties.map((property: any) => (
+              {normalizeCustomProperties(badge.customProperties).length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Custom Properties</h3>
+                  <div className="text-sm space-y-1">
+                    {normalizeCustomProperties(badge.customProperties).map(
+                      (property) => (
                         <p key={property.key}>
                           <span className="font-medium">{property.key}:</span>{" "}
                           {property.value}
                         </p>
-                      ))}
-                    </div>
+                      ),
+                    )}
                   </div>
-                )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

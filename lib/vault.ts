@@ -58,6 +58,36 @@ const signBytes = async (
   return new Uint8Array(signatureBuffer);
 };
 
+/**
+ * Resolves a Vault transit key name. The three platform wallets are keyed by
+ * their role name; every other signer is a user whose key is the hash of their
+ * cleaned email.
+ */
+export const vaultKeyName = (signerEmail: string) => {
+  const isPlatform =
+    signerEmail === "admin" ||
+    signerEmail === "operational" ||
+    signerEmail === "onboarding";
+  return isPlatform ? signerEmail : getHash(cleanString(signerEmail));
+};
+
+/**
+ * Signs an already-encoded, already-grouped transaction.
+ *
+ * signTransactions() below assigns its own group ID, which is wrong for
+ * transactions built elsewhere (the x402 payment group is composed and grouped
+ * by @x402/avm before it reaches us).
+ */
+export const signEncodedTransaction = async (
+  encodedTxn: Uint8Array,
+  signerEmail: string,
+  signerAddress: string
+): Promise<Uint8Array> => {
+  const txn = algosdk.decodeUnsignedTransaction(encodedTxn);
+  const signature = await signBytes(txn.bytesToSign(), vaultKeyName(signerEmail));
+  return txn.attachSignature(signerAddress, signature);
+};
+
 export const signTransactions = async (
   transactions: {
     txn: algosdk.Transaction;
@@ -72,15 +102,9 @@ export const signTransactions = async (
   const signatures: Uint8Array[] = [];
   for (let i = 0; i < txnGroup.length; i++) {
     const bytes = txnGroup[i].bytesToSign();
-    const isEmail =
-      transactions[i].signerEmail !== "admin" &&
-      transactions[i].signerEmail !== "operational" &&
-      transactions[i].signerEmail !== "onboarding";
     const signature = await signBytes(
       bytes,
-      isEmail
-        ? getHash(cleanString(transactions[i].signerEmail))
-        : transactions[i].signerEmail
+      vaultKeyName(transactions[i].signerEmail)
     );
     signatures.push(signature);
   }

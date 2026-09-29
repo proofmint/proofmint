@@ -3,15 +3,12 @@ import prisma from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 import { z } from "zod";
-import { algodClient, JWT_SECRET, OPERATIONAL_WALLET } from "@/lib/const";
+import { JWT_SECRET } from "@/lib/const";
 import { getDetailedBalances } from "@/lib/blockchain";
 import mime from "mime-types";
-import { calculateSHA256, getEmailsHash } from "@/lib/utils";
-import algosdk from "algosdk";
-import { signTransactions } from "@/lib/vault";
 import { cleanString } from "@/lib/utils";
-import { storeAsCAR, storeMetadataAsCAR, saveImageFile } from "@/lib/car";
 import { isValidEmail } from "@/lib/validators";
+import { badgeTotalCost, mintBadgeAsset } from "@/lib/services/badgeMinting";
 
 const createBadgeSchema = z.object({
   badgeName: z
@@ -144,7 +141,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const totalCost = 0.102 + numToMint * 0.103;
+    const totalCost = badgeTotalCost(numToMint);
     const { deltaBalance } = await getDetailedBalances(
       issuer.user.walletAddress
     );
@@ -166,72 +163,21 @@ export async function POST(req: NextRequest) {
 
     const ext = mime.extension(mimeType) || "bin";
     const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
-    const imageCid = await storeAsCAR(new Uint8Array(imageBuffer));
 
-    // Save local copy with correct extension
-    await saveImageFile(imageCid, imageBuffer, ext);
-
-    const imageHash = await calculateSHA256(imageBuffer.buffer as ArrayBuffer);
-
-    const emailsHash = await getEmailsHash(recipientEmails);
-
-    const metadata = {
-      name: badgeName,
-      unit_name: unitName,
-      creator: issuer.user.walletAddress,
+    const mintResult = await mintBadgeAsset({
+      issuerWalletAddress: issuer.user.walletAddress,
+      issuerEmail: issuer.user.email,
+      badgeName,
+      unitName,
       description,
-      image: `ipfs://${imageCid}#arc3`,
-      image_integrity: `sha256-${imageHash}`,
-      image_mimetype: mimeType,
-      properties: customProperties,
-    };
-
-    const metadataCid = await storeMetadataAsCAR(metadata);
-
-    const suggestedParams = await algodClient.getTransactionParams().do();
-    const group = [
-      {
-        txn: algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
-          sender: issuer.user.walletAddress,
-          total: numToMint,
-          decimals: 0,
-          assetName: badgeName,
-          unitName: unitName,
-          assetURL: `ipfs://${metadataCid}#arc3`,
-          defaultFrozen: false,
-          manager: issuer.user.walletAddress,
-          reserve: issuer.user.walletAddress,
-          freeze: issuer.user.walletAddress,
-          clawback: issuer.user.walletAddress,
-          suggestedParams,
-          note: new TextEncoder().encode(
-            `badge-${recipientEmails.length > 0 ? emailsHash : ""}`
-          ),
-        }),
-        signerEmail: issuer.user.email,
-        signerAddress: issuer.user.walletAddress,
-      },
-      {
-        txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-          sender: issuer.user.walletAddress,
-          receiver: OPERATIONAL_WALLET,
-          amount: algosdk.algosToMicroalgos(totalCost - 0.102),
-          suggestedParams,
-        }),
-        signerEmail: issuer.user.email,
-        signerAddress: issuer.user.walletAddress,
-      },
-    ];
-
-    const { bytes, txnIds } = await signTransactions(group);
-
-    await algodClient.sendRawTransaction(bytes).do();
-
-    const blockchainResult = await algosdk.waitForConfirmation(
-      algodClient,
-      txnIds[0],
-      3
-    );
+      imageBuffer,
+      imageMimeType: mimeType,
+      imageExt: ext,
+      numToMint,
+      recipientEmails,
+      customProperties,
+    });
+    const { imageCid, metadataCid } = mintResult;
 
     const { newBadge } = await prisma.$transaction(async (tx) => {
       await tx.creditTransaction.create({
@@ -250,7 +196,7 @@ export async function POST(req: NextRequest) {
       const createdBadge = await tx.badge.create({
         data: {
           name: badgeName,
-          assetId: blockchainResult.assetIndex?.toString() || "",
+          assetId: mintResult.assetId,
           issuerId: issuer.id,
           description,
           imageCid: imageCid,

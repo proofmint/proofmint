@@ -131,6 +131,7 @@ export default function CreateTemplatePage() {
               id: field.id || `field_${Date.now()}_${index}`,
               placeholder: field.placeholder || `[${field.name}]`,
               fontFamily: field.fontFamily || 'Arial',
+              fontWeight: field.fontWeight || 'normal',
               textAlign: field.align || field.textAlign || 'left',
             }))
             
@@ -328,6 +329,7 @@ export default function CreateTemplatePage() {
         y: Math.round(field.y),
         fontSize: field.fontSize,
         fontFamily: field.fontFamily,
+        fontWeight: field.fontWeight,
         color: field.color,
         maxWidth: undefined,
         maxHeight: undefined,

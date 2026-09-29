@@ -29,6 +29,8 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
+import X402ModeToggle from "@/components/x402-mode-toggle"
+import { x402Post } from "@/lib/x402/browser"
 
 interface DynamicField {
   name: string
@@ -71,6 +73,7 @@ export default function IssueCertificatePage() {
   const [newProperty, setNewProperty] = useState({ key: "", value: "" })
   const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [x402Mode, setX402Mode] = useState(false)
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
@@ -221,6 +224,44 @@ export default function IssueCertificatePage() {
     }
 
     setIsLoading(true)
+
+    if (x402Mode) {
+      // Paid path: POST /api/x402/certificates/mint charges USDC per
+      // certificate on top of the credit, over the HTTP 402 flow.
+      try {
+        const result = await x402Post("/api/x402/certificates/mint", {
+          templateId: selectedTemplate.id,
+          recipientEmail,
+          certificateName: certificateName.trim(),
+          unitName: unitName.trim(),
+          description: description.trim(),
+          fieldData,
+          customProperties,
+          sendEmail,
+        })
+        if (!result.ok) throw new Error(result.data?.error || "Failed to issue certificate")
+
+        // Same success state as the credit path, so the page lands on the
+        // "Certificate Issued" screen either way. The paid endpoint names the
+        // record certificateId rather than nesting it under `certificate`.
+        setIssuedCertificate({
+          id: result.data.certificateId,
+          assetId: result.data.assetId,
+          imageCid: result.data.imageCid ?? null,
+        })
+        setCreditBalance((prev) => (prev ?? 0) - 1)
+        toast({
+          title: result.paid ? "Certificate issued and paid in USDC" : "Certificate issued!",
+          description: `Asset ${result.data.assetId} sent to ${recipientEmail}`,
+        })
+      } catch (error) {
+        toast({ title: "Failed to issue certificate", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" })
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
+
     try {
       const response = await fetch("/api/certificates/issue", {
         method: "POST",
@@ -636,7 +677,7 @@ export default function IssueCertificatePage() {
                   {isLoading ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Issuing…</>
                   ) : (
-                    <><FileText className="h-4 w-4 mr-2" />Issue Certificate<span className="ml-2 text-xs opacity-80 font-normal">(1 credit)</span></>
+                    <><FileText className="h-4 w-4 mr-2" />Issue Certificate<span className="ml-2 text-xs opacity-80 font-normal">{x402Mode ? "(1 credit + USDC)" : "(1 credit)"}</span></>
                   )}
                 </Button>
               </div>
@@ -733,6 +774,17 @@ export default function IssueCertificatePage() {
                     {creditBalance !== null ? creditBalance - 1 : "—"} credits
                   </span>
                 </div>
+              </div>
+            )}
+
+            {selectedTemplate && (
+              <div className="mt-4">
+                <X402ModeToggle
+                  kind="certificate"
+                  quantity={1}
+                  enabled={x402Mode}
+                  onChange={setX402Mode}
+                />
               </div>
             )}
           </div>
